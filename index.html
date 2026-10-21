@@ -933,10 +933,7 @@ function defaultServices(name) {
   return {
     dhcp: { on: false, start: '', mask: '255.255.255.0', gw: '', dns: '', max: 50, leases: new Map(), offers: new Map() },
     dns: { on: false, records: [] },
-    http: { on: true, html: `<!doctype html>\n<html lang="es">\n<head><meta charset="utf-8"><title>${name}</title></head>\n<body style="font-family:sans-serif;text-align:center;padding:40px">\n  <h1>¡Funciona!</h1>\n  <p>Página servida por <b>${name}</b> (HTTP, puerto 80).</p>\n<script>
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
-</script>
-</body>\n</html>` }
+    http: { on: true, html: `<!doctype html>\n<html lang="es">\n<head><meta charset="utf-8"><title>${name}</title></head>\n<body style="font-family:sans-serif;text-align:center;padding:40px">\n  <h1>¡Funciona!</h1>\n  <p>Página servida por <b>${name}</b> (HTTP, puerto 80).</p>\n</body>\n</html>` }
   };
 }
 
@@ -4126,6 +4123,9 @@ $('#legend').innerHTML = '<b>TIA-606</b>' + Object.values(TIA).map(t =>
   '<span>· cruzado con anillas · fibra fina y luminosa · caído translúcido</span>';
 log('Simulador listo. Elige un equipo en la barra superior y haz clic en la cuadrícula para colocarlo.');
 buildDemo();
+</script>
+<script>
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
 </script>
 </body>
 </html>
