@@ -3,6 +3,12 @@
 Simulador de redes en 3D para el ciclo SMX: equipos, cableado con validación de puertos
 (código de colores TIA-606), ARP, ICMP, tablas MAC y de rutas, y modo simulación paso a paso.
 
+- Servicios DHCP, DNS y HTTP en el servidor, navegador web en los equipos.
+- Símbolo del sistema en los PC: ipconfig, ping, tracert, nslookup, arp.
+- CLI de Cisco IOS en routers y switches (también por cable de consola): interfaces, rutas,
+  DHCP en el router, ip helper-address, contraseñas, show running-config…
+- VLAN, troncales 802.1Q, router-on-a-stick, SVI en el switch de capa 3 y Spanning Tree.
+
 **Abrir:** https://cecacsmx.github.io/simulador-redes-3d/ (se puede instalar como aplicación y funciona sin conexión).
 
 Este repositorio solo contiene la versión publicada; se genera con `publicar.py`.

@@ -73,12 +73,26 @@ input[type=text],input[type=url]{font:inherit;border:1px solid var(--line);borde
 .ci.incompat{opacity:.5}
 .ci small{color:var(--muted)}
 #modalBg,.modalbg{position:fixed;inset:0;background:rgba(20,30,45,.35);display:flex;align-items:center;justify-content:center;z-index:40}
-#ipForm{width:min(440px,92vw);max-height:88vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:9px}
-#ipForm h3{margin:0 0 4px;font-size:15px}
-#fBody{display:flex;flex-direction:column;gap:9px}
-#ipForm label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+#ipForm,#svcForm{width:min(440px,92vw);max-height:88vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:9px}
+#svcForm{width:min(520px,94vw)}
+#ipForm h3,#svcForm h3{margin:0 0 4px;font-size:15px}
+#fBody,#sBody{display:flex;flex-direction:column;gap:9px}
+#ipForm label,#svcForm label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+#ipForm label.chk,#svcForm label.chk{flex-direction:row;color:var(--ink)}
+.svc{border:1px solid var(--line);border-radius:8px;padding:8px 10px;display:flex;flex-direction:column;gap:7px}
+.svc .grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px 8px}
+#webBox{width:min(760px,94vw);height:min(580px,88vh);padding:12px;display:flex;flex-direction:column;gap:8px}
+#webFrame{flex:1;width:100%;border:1px solid var(--line);border-radius:7px;background:#fff}
+#webStatus{min-height:16px}
+#termBox{width:min(760px,94vw);height:min(520px,86vh);padding:10px;display:flex;flex-direction:column;gap:6px;background:#0c0c0c;border-color:#333}
+#termBox h3{color:#e6e6e6}
+#termOut{flex:1;margin:0;overflow:auto;color:#cccccc;font:13px/1.4 Consolas,ui-monospace,monospace;white-space:pre-wrap;word-break:break-word}
+#termLine{display:flex;align-items:center;gap:4px;color:#cccccc;font:13px Consolas,ui-monospace,monospace}
+#termIn{flex:1;background:transparent;border:0;outline:0;color:#f2f2f2;font:inherit;padding:2px 0}
+#termIn:disabled{opacity:.5}
 .grid3{display:grid;grid-template-columns:auto 1fr 1fr;gap:5px 6px;align-items:center}
 .grid3 input{min-width:0}
+.grid3.on4{grid-template-columns:auto 1fr 1fr auto}
 textarea{font:12px ui-monospace,Consolas,monospace;border:1px solid var(--line);border-radius:7px;padding:5px 8px;resize:vertical}
 .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .seg{display:inline-flex}
@@ -108,6 +122,7 @@ body.sim #props{max-height:calc(58vh - 130px)}
 .iflabel{font:600 11px system-ui,sans-serif;background:rgba(255,255,255,.92);border:1px solid #c3cfdb;border-radius:5px;padding:1px 5px;display:flex;align-items:center;gap:4px;white-space:nowrap}
 .led{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
 .led.off{background:var(--bad);box-shadow:0 0 6px var(--bad)}
+.led.blk{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
 @media (max-width:700px){#props{top:auto;bottom:10px;width:calc(100% - 20px);max-height:45vh}}
 </style>
 <script type="importmap">
@@ -146,6 +161,7 @@ body.sim #props{max-height:calc(58vh - 130px)}
   <div class="group"><span class="gt">Escena</span>
     <button id="btnExport">Exportar escena .OBJ</button>
     <button id="btnDemo">Ejemplo</button>
+    <button id="btnDemoVlan" title="Tres switches en triángulo (STP), VLAN 10 y 20, troncales y router-on-a-stick">Ejemplo VLAN</button>
     <button id="btnClear" class="danger">Vaciar</button>
   </div>
   <div id="hintRow"><span id="hint"></span><span id="legend" title="Código de colores TIA-606 según la función del enlace"></span></div>
@@ -171,6 +187,10 @@ body.sim #props{max-height:calc(58vh - 130px)}
     <span class="note">Filtros</span>
     <label class="chk"><input type="checkbox" data-filter="ARP" checked>ARP</label>
     <label class="chk"><input type="checkbox" data-filter="ICMP" checked>ICMP</label>
+    <label class="chk"><input type="checkbox" data-filter="DHCP" checked>DHCP</label>
+    <label class="chk"><input type="checkbox" data-filter="DNS" checked>DNS</label>
+    <label class="chk"><input type="checkbox" data-filter="TCP" checked>TCP</label>
+    <label class="chk"><input type="checkbox" data-filter="HTTP" checked>HTTP</label>
   </div>
   <div id="evWrap"><table><thead><tr><th></th><th>Tiempo</th><th>Último equipo</th><th>En equipo</th><th>Tipo</th></tr></thead><tbody id="evBody"></tbody></table></div>
 </div>
@@ -192,6 +212,32 @@ body.sim #props{max-height:calc(58vh - 130px)}
     <div id="fErr" class="ferr"></div>
     <div class="row end"><button type="button" id="fCancel">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
   </form>
+</div>
+
+<div id="svcBg" class="modalbg" hidden>
+  <form id="svcForm" class="panel" autocomplete="off">
+    <h3 id="sTitle">Servicios</h3>
+    <div id="sBody"></div>
+    <div id="sErr" class="ferr"></div>
+    <div class="row end"><button type="button" id="sCancel">Cancelar</button><button type="submit" class="primary">Guardar</button></div>
+  </form>
+</div>
+
+<div id="termBg" class="modalbg" hidden>
+  <div id="termBox" class="panel">
+    <div class="ph"><h3 id="termTitle" style="margin:0;font-size:14px">Símbolo del sistema</h3><button class="mini" id="termClose">✕</button></div>
+    <pre id="termOut"></pre>
+    <label id="termLine"><span id="termPrompt">C:\&gt;</span><input type="text" id="termIn" spellcheck="false" autocomplete="off" aria-label="Comando"></label>
+  </div>
+</div>
+
+<div id="webBg" class="modalbg" hidden>
+  <div id="webBox" class="panel">
+    <div class="ph"><h3 id="webTitle" style="margin:0;font-size:15px">Navegador web</h3><button class="mini" id="webClose">✕</button></div>
+    <form id="webForm" class="row" autocomplete="off"><input type="text" id="webUrl" spellcheck="false" placeholder="http://www.smx.lan"><button type="submit" class="primary">Ir</button></form>
+    <div id="webStatus" class="note"></div>
+    <iframe id="webFrame" sandbox title="Página recibida"></iframe>
+  </div>
 </div>
 
 <script type="module">
@@ -509,7 +555,10 @@ const BUILDERS = { router: buildRouter, switch: buildSwitch, l3switch: buildL3Sw
 /* ---------- Modelo de datos ---------- */
 class Port {
   constructor(device, name, short, type, hidden) {
-    Object.assign(this, { device, name, short, type, hidden, link: null, pair: null, mac: '', ip: '', mask: '255.255.255.0' });
+    Object.assign(this, { device, name, short, type, hidden, link: null, pair: null, mac: '', ip: '', mask: '255.255.255.0',
+      shutdown: false, desc: '', helper: '', routed: false,
+      // VLAN (puertos de switch): modo, VLAN de acceso, nativa y permitidas (null = todas); subinterfaces del router; estado STP
+      mode: 'access', vlan: 1, native: 1, allowed: null, trunkEnc: 'auto', subs: [], stp: null });
   }
 }
 
@@ -526,13 +575,26 @@ class Device {
     this.ip = '';
     this.mask = '255.255.255.0';
     this.gw = '';
+    this.dns = '';
+    this.ipMode = 'static';        // equipos finales: 'static' o 'dhcp'
+    this.dhcpOp = null;
+    if (kind === 'server') this.services = defaultServices(this.name);
     this.routes = [];
     this.arp = new Map();          // IP → { mac, iface }
     this.macTable = new Map();     // MAC → puerto
     this.pendingArp = new Map();   // IP siguiente salto → paquetes esperando su MAC
-    this.svi = { ip: '', mask: '255.255.255.0', mac: randMac() };
+    this.svi = { ip: '', mask: '255.255.255.0', mac: randMac(), shutdown: false, helper: '', desc: '' };
+    this.svis = { 1: this.svi };                 // interfaces Vlan N (SVI)
+    this.vlans = new Map([[1, 'default']]);
+    this.stpOn = true;
+    this.stpPriority = 32768;
     this.custom = false;
     this.ports = this.def.ports.map(([n, s, t, h]) => new Port(this, n, s, t, !!h));
+    // Equipos con IOS: configuración de la CLI; las interfaces de un router nuevo vienen apagadas, como en Cisco
+    this.defaultGw = '';
+    if (kind === 'router' || kind === 'switch' || kind === 'l3switch') this.ios = { enableSecret: '', enablePass: '', conPass: '', conLogin: false,
+      encrypt: false, banner: '', startup: null, dhcp: { pools: [], excluded: [], leases: new Map(), offers: new Map() } };
+    if (kind === 'router') this.ports.forEach(p => { if (p.type === 'copper' || p.type === 'fiber') p.shutdown = true; });
     if (!this.def.passive) this.ports.forEach(p => { if (p.type !== 'console' && p.type !== 'rs232') p.mac = randMac(); });
     if (this.def.passive) {
       const half = this.ports.length / 2;
@@ -680,8 +742,19 @@ class Link {
     const type = ch.segs.filter(s => s.link.type === 'crossover').length % 2 ? 'crossover' : 'straight';
     return { A: ch.endA.device, B: ch.endB.device, type, ch };
   }
+  // Puertos de los equipos activos de cada extremo
+  get endPorts() {
+    if (!this.passive) return [this.a, this.b];
+    const ch = channelOf(this);
+    return [ch.endA, ch.endB];
+  }
+  get adminDown() {
+    return this.type !== 'console' && this.type !== 'wireless' && this.endPorts.find(p => p.shutdown) || null;
+  }
   get up() {
-    if (this.type !== 'straight' && this.type !== 'crossover') return true;
+    if (this.type === 'console' || this.type === 'wireless') return true;
+    if (this.adminDown) return false;
+    if (this.type === 'fiber') return true;
     const { A, B, type, ch } = this.ends;
     if (ch && ch.openAt) return false;
     if (autoMDIX) return true;
@@ -689,6 +762,8 @@ class Link {
     return type === 'crossover' ? same : !same;
   }
   get downReason() {
+    const off = this.adminDown;
+    if (off) return `La interfaz ${off.name} de ${off.device.name} está apagada (shutdown): actívala con «no shutdown» en la CLI o marcando «Encendida» en su configuración.`;
     const { A, B, type, ch } = this.ends;
     let via = '';
     if (ch) {
@@ -748,8 +823,10 @@ class Link {
       const el = document.createElement('div');
       el.className = 'iflabel';
       const role = this.type === 'wireless' ? '' : ` · ${TIA[cableRole(this)].name}: ${TIA[cableRole(this)].label}`;
-      el.title = (up ? `${port.name} · enlace activo` : this.downReason) + role;
-      el.innerHTML = `<span class="led${up ? '' : ' off'}"></span>${esc(port.short)}`;
+      const blk = up && port.stp?.state === 'BLK';
+      const vl = isL2Port(port) && hasSvi(port.device) ? (port.mode === 'trunk' ? ' · troncal' : port.vlan !== 1 ? ` · V${port.vlan}` : '') : '';
+      el.title = (blk ? `${port.name} · STP: puerto bloqueado (alternate) para evitar un bucle` : up ? `${port.name} · enlace activo` : this.downReason) + role;
+      el.innerHTML = `<span class="led${blk ? ' blk' : up ? '' : ' off'}"></span>${esc(port.short)}${vl}`;
       const o = new CSS2DObject(el);
       o.position.copy(this.curve.getPoint(ts[k]));
       o.position.y += 0.4;
@@ -768,6 +845,18 @@ class Link {
   }
 }
 
+// Servicios del servidor: DHCP y DNS apagados, HTTP encendido con una página por defecto
+function defaultServices(name) {
+  return {
+    dhcp: { on: false, start: '', mask: '255.255.255.0', gw: '', dns: '', max: 50, leases: new Map(), offers: new Map() },
+    dns: { on: false, records: [] },
+    http: { on: true, html: `<!doctype html>\n<html lang="es">\n<head><meta charset="utf-8"><title>${name}</title></head>\n<body style="font-family:sans-serif;text-align:center;padding:40px">\n  <h1>¡Funciona!</h1>\n  <p>Página servida por <b>${name}</b> (HTTP, puerto 80).</p>\n<script>
+if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
+</script>
+</body>\n</html>` }
+  };
+}
+
 /* ---------- Gestión de equipos y enlaces ---------- */
 function addDevice(kind, pos, silent = false) {
   const d = new Device(kind, pos);
@@ -780,24 +869,28 @@ function removeDevice(d, silent = false) {
   if (selected === d) selected = null;
   if (pingSrc === d) pingSrc = null;
   if (cableStart && cableStart.device === d) cableStart = null;
+  if (webDev === d) closeWeb();
+  if (term && (term.dev === d || term.host === d)) closeTerm();
+  if (svcTarget === d) closeSvc();
+  cancelDhcp(d);
   d.dispose();
   devices.splice(devices.indexOf(d), 1);
   assoc.delete(d);
   if (!silent) { log(`Equipo eliminado: ${d.name}`, 'warn'); updateWireless(); renderProps(); }
 }
-function refreshPair(A, B) {
-  links.filter(l => (l.a.device === A && l.b.device === B) || (l.a.device === B && l.b.device === A)).forEach(l => l.rebuild());
-}
 function refreshLinksOf(d) {
   links.filter(l => l.a.device === d || l.b.device === d).forEach(l => l.rebuild());
   wlinks.filter(l => l.a.device === d || l.b.device === d).forEach(l => l.rebuild());
 }
-// Un cambio en un tramo de patch panel altera el estado de todo el canal: se redibujan todos los cables
-const rebuildAll = () => links.forEach(l => l.rebuild());
+// Cualquier cambio de topología recalcula STP y redibuja todos los cables (un tramo de patch panel altera todo el canal)
+function rebuildAll() {
+  computeStp();
+  links.forEach(l => l.rebuild());
+}
 function addLink(type, a, b, silent = false) {
   const l = new Link(type, a, b);
   links.push(l);
-  if (l.passive) rebuildAll(); else refreshPair(a.device, b.device);
+  rebuildAll();
   if (!silent) {
     const open = l.passive && l.ends.ch.openAt;
     const role = TIA[cableRole(l)];
@@ -812,7 +905,7 @@ function addLink(type, a, b, silent = false) {
 function removeLink(l, silent = false) {
   l.destroy();
   links = links.filter(x => x !== l);
-  if (l.passive) rebuildAll(); else refreshPair(l.a.device, l.b.device);
+  rebuildAll();
   // las entradas MAC que apuntaban a un puerto ya sin cable dejan de valer
   devices.forEach(d => { for (const [mac, p] of d.macTable) if (!p.link && p.type !== 'wireless') d.macTable.delete(mac); });
   if (!silent) {
@@ -996,14 +1089,26 @@ function hostIface(d) {
   const nic = hostNic(d);
   return { name: nic.name, short: nic.short, ip: d.ip, mask: d.mask, mac: nic.mac, port: nic };
 }
+// Interfaces con IP: puertos, subinterfaces 802.1Q del router (Gi0/0.10) e interfaces Vlan N (svi = nº de VLAN)
 function l3Ifaces(d) {
-  const r = d.ports.filter(p => p.ip).map(p => ({ name: p.name, short: p.short, ip: p.ip, mask: p.mask, mac: p.mac, port: p }));
-  if (d.kind === 'l3switch' && d.svi.ip) r.push({ name: 'Vlan1', short: 'Vlan1', ip: d.svi.ip, mask: d.svi.mask, mac: d.svi.mac, svi: true });
+  const r = [];
+  d.ports.forEach(p => {
+    if (p.ip) r.push({ name: p.name, short: p.short, ip: p.ip, mask: p.mask, mac: p.mac, port: p });
+    p.subs.forEach(s => { if (s.ip) r.push({ name: `${p.name}.${s.id}`, short: `${p.short}.${s.id}`, ip: s.ip, mask: s.mask, mac: p.mac, port: p, sub: s }); });
+  });
+  if (hasSvi(d)) Object.entries(d.svis).forEach(([v, o]) => { if (o.ip) r.push({ name: `Vlan${v}`, short: `Vlan${v}`, ip: o.ip, mask: o.mask, mac: o.mac, svi: Number(v) }); });
   return r;
 }
-const ifacesOf = d => d.def.host ? (d.ip ? [hostIface(d)] : []) : isL3(d) ? l3Ifaces(d) : [];
+// Puerto de switch (capa 2): cobre o fibra sin IP ni convertido en enrutado
+const isL2Port = p => (p.type === 'copper' || p.type === 'fiber') && !p.ip && !p.routed && hasL2(p.device);
+const ifConf = (d, i) => i.svi ? d.svis[i.svi] : i.sub || i.port;
+// Vlan1: interfaz virtual del SW capa 3 y dirección de gestión del switch
+const hasSvi = d => d.kind === 'l3switch' || d.kind === 'switch';
+const ifacesOf = d => d.def.host ? (d.ip ? [hostIface(d)] : []) : isL3(d) || d.kind === 'switch' ? l3Ifaces(d) : [];
+// Interfaces que enrutan: las apagadas (shutdown) salen de la tabla de rutas
+const ifaceOn = (d, i) => i.svi ? !d.svis[i.svi].shutdown : !i.port.shutdown && !i.sub?.shutdown;
 function routeTable(d) {
-  const r = l3Ifaces(d).map(i => ({ code: 'C', net: intToIp(netOf(i.ip, i.mask)), bits: maskBits(i.mask), iface: i.short }));
+  const r = l3Ifaces(d).filter(i => ifaceOn(d, i)).map(i => ({ code: 'C', net: intToIp(netOf(i.ip, i.mask)), bits: maskBits(i.mask), iface: i.short }));
   d.routes.forEach(s => r.push({ code: 'S', net: s.net, bits: maskBits(s.mask), via: s.via }));
   return r;
 }
@@ -1016,13 +1121,14 @@ function resolveRoute(d, dst) {
     if (netOf(d.gw, i.mask) !== netOf(i.ip, i.mask)) return { error: `la puerta de enlace ${d.gw} de ${d.name} no está en su red` };
     return { iface: i, nextHop: d.gw };
   }
-  const ifs = l3Ifaces(d);
+  const ifs = l3Ifaces(d).filter(i => ifaceOn(d, i));
   let best = null;
   for (const i of ifs) {
     if (netOf(dst, i.mask) === netOf(i.ip, i.mask) && (!best || maskBits(i.mask) > best.bits))
       best = { bits: maskBits(i.mask), iface: i, nextHop: dst };
   }
-  for (const s of d.routes) {
+  const routes = d.kind === 'switch' ? (d.defaultGw ? [{ net: '0.0.0.0', mask: '0.0.0.0', via: d.defaultGw }] : []) : d.routes;
+  for (const s of routes) {
     if (netOf(dst, s.mask) !== netOf(s.net, s.mask) || (best && maskBits(s.mask) <= best.bits)) continue;
     const out = ifs.find(i => netOf(s.via, i.mask) === netOf(i.ip, i.mask));
     if (out) best = { bits: maskBits(s.mask), iface: out, nextHop: s.via };
@@ -1038,18 +1144,30 @@ function infoHTML(d) {
   let h = '';
   if (d.def.host) {
     const nic = hostNic(d);
-    h += `<div class="sec"><h4>Configuración IP</h4>
-      <div class="kv"><span>Dirección IP</span><b>${d.ip || 'sin configurar'}</b></div>
+    const dhcp = d.ipMode === 'dhcp';
+    h += `<div class="sec"><h4>Configuración IP · ${dhcp ? 'DHCP' : 'estática'}</h4>
+      <div class="kv"><span>Dirección IP</span><b>${d.ip || (d.dhcpOp ? 'esperando al DHCP…' : 'sin configurar')}</b></div>
       <div class="kv"><span>Máscara</span><b>${d.ip ? d.mask + ' (/' + maskBits(d.mask) + ')' : '—'}</b></div>
       <div class="kv"><span>Puerta de enlace</span><b>${d.gw || '—'}</b></div>
+      <div class="kv"><span>Servidor DNS</span><b>${d.dns || '—'}</b></div>
       <div class="kv"><span>MAC (${esc(nic.short)})</span><b>${nic.mac}</b></div>
-      <button data-act="ip">Configurar IP…</button></div>`;
+      <div class="row wrap"><button data-act="ip">Configurar IP…</button>${dhcp ? '<button data-act="renew">Renovar DHCP</button>' : ''}<button data-act="cmd">Símbolo del sistema…</button><button data-act="web">Navegador web…</button>${consoleTarget(d) ? `<button data-act="console">Terminal (consola) → ${esc(consoleTarget(d).name)}…</button>` : ''}</div></div>`;
+    if (d.services) {
+      const s = d.services, st = on => `<span class="pill ${on ? 'free' : 'busy'}">${on ? 'Activo' : 'Apagado'}</span>`;
+      h += `<div class="sec"><h4>Servicios</h4>
+        <div class="kv"><span>DHCP${s.dhcp.on ? ` · pool ${s.dhcp.start} (${s.dhcp.max})` : ''}</span>${st(s.dhcp.on)}</div>
+        <div class="kv"><span>DNS · ${s.dns.records.length} registro(s)</span>${st(s.dns.on)}</div>
+        <div class="kv"><span>HTTP · puerto 80</span>${st(s.http.on)}</div>
+        <button data-act="svc">Configurar servicios…</button></div>`;
+      if (s.dhcp.leases.size) h += `<div class="sec"><h4>Concesiones DHCP</h4><table>${[...s.dhcp.leases].map(([mac, ip]) =>
+        `<tr><td>${ip}</td><td><small>${mac}</small></td></tr>`).join('')}</table></div>`;
+    }
   } else if (isL3(d)) {
     const ifs = l3Ifaces(d), rt = routeTable(d);
     h += `<div class="sec"><h4>Interfaces IP</h4><table>${ifs.length ? ifs.map(i =>
-        `<tr><td><b>${esc(i.short)}</b></td><td>${i.ip}/${maskBits(i.mask)}</td><td><small>${i.mac}</small></td></tr>`).join('')
+        `<tr><td><b>${esc(i.short)}</b></td><td>${i.ip}/${maskBits(i.mask)}${ifaceOn(d, i) ? '' : ' <span class="pill down">apagada</span>'}</td><td><small>${i.mac}</small></td></tr>`).join('')
         : '<tr><td class="note">Sin direcciones IP</td></tr>'}</table>
-      <button data-act="ip">Configurar interfaces y rutas…</button></div>
+      <div class="row wrap"><button data-act="ip">Configurar interfaces y rutas…</button><button data-act="cli">CLI…</button></div></div>
       <div class="sec"><h4>Tabla de rutas</h4><table>${rt.length ? rt.map(r =>
         `<tr><td><b>${r.code}</b></td><td>${r.net}/${r.bits}</td><td><small>${r.code === 'C' ? 'conectada, ' + esc(r.iface) : 'vía ' + r.via}</small></td></tr>`).join('')
         : emptyRow}</table></div>`;
@@ -1057,14 +1175,25 @@ function infoHTML(d) {
     h += `<div class="sec">
       <span class="note">Elemento pasivo: cada puerto frontal está unido por dentro con su trasero (F1↔T1, F2↔T2…). No tiene IP; el enlace se valida de extremo a extremo entre los equipos activos.</span>
       <button data-act="ip">Cambiar nombre…</button></div>`;
+  } else if (d.kind === 'switch') {
+    h += `<div class="sec"><span class="note">Equipo de capa 2: reenvía tramas según su tabla MAC y no necesita IP.</span>
+      <div class="kv"><span>IP de gestión (Vlan1)</span><b>${d.svi.ip ? d.svi.ip + '/' + maskBits(d.svi.mask) : '—'}</b></div>
+      <div class="kv"><span>ip default-gateway</span><b>${d.defaultGw || '—'}</b></div>
+      <div class="row wrap"><button data-act="ip">Configurar…</button><button data-act="cli">CLI…</button></div></div>`;
   } else {
     h += `<div class="sec"><span class="note">Equipo de capa 2: reenvía tramas según su tabla MAC y no necesita IP.</span>
       <button data-act="ip">Cambiar nombre…</button></div>`;
   }
+  if (hasSvi(d)) h += `<div class="sec"><h4>VLAN y STP</h4>
+      <div class="kv"><span>VLAN</span><b>${[...d.vlans].map(([v, n]) => `${v} ${esc(n)}`).join(' · ')}</b></div>
+      <div class="kv"><span>Spanning Tree</span><b>${!d.stpOn ? 'desactivado' : !d.stpRoot ? '—' : d.stpRoot === d ? 'puente raíz' : `raíz ${esc(d.stpRoot.name)} · coste ${d.stpCostToRoot}`}</b></div>
+      <div class="kv"><span>Prioridad</span><b>${d.stpPriority}</b></div></div>`;
   if (d.def.host || isL3(d)) h += `<div class="sec"><h4>Tabla ARP</h4><table>${d.arp.size ? [...d.arp].map(([ip, e]) =>
       `<tr><td>${ip}</td><td><small>${e.mac}</small></td><td><small>${esc(e.iface)}</small></td></tr>`).join('') : emptyRow}</table></div>`;
-  if (hasL2(d)) h += `<div class="sec"><h4>Tabla MAC</h4><table>${d.macTable.size ? [...d.macTable].map(([mac, p]) =>
-      `<tr><td><small>${mac}</small></td><td><b>${esc(p.short)}</b></td></tr>`).join('') : emptyRow}</table></div>`;
+  if (hasL2(d)) h += `<div class="sec"><h4>Tabla MAC</h4><table>${d.macTable.size ? [...d.macTable].map(([key, p]) => {
+      const [vlan, mac] = key.split('|');
+      return `<tr>${hasSvi(d) ? `<td><small>VLAN ${vlan}</small></td>` : ''}<td><small>${mac}</small></td><td><b>${esc(p.short)}</b></td></tr>`;
+    }).join('') : emptyRow}</table></div>`;
   return h;
 }
 function renderProps() {
@@ -1073,7 +1202,7 @@ function renderProps() {
   props.hidden = false;
   const rows = d.ports.map((p, i) => `<tr>
       <td><b>${esc(p.short)}</b><br><small>${esc(p.name)}${p.mac ? '<br>' + p.mac : ''}</small></td>
-      <td><small>${PORT_TYPES[p.type]}</small></td>
+      <td><small>${PORT_TYPES[p.type]}${isL2Port(p) && hasSvi(d) ? `<br>${p.mode === 'trunk' ? 'troncal' : 'VLAN ' + p.vlan}${p.stp?.state === 'BLK' && p.link ? ' · <b style="color:#b26b00">STP bloq.</b>' : ''}` : ''}</small></td>
       <td>${statusPill(p)}</td>
       <td>${p.link ? `<button class="mini" data-unlink="${i}" title="Desconectar cable">✕</button>` : ''}</td></tr>`).join('');
   props.innerHTML = `
@@ -1100,6 +1229,12 @@ props.addEventListener('click', async e => {
   const act = b.dataset.act;
   if (act === 'close') select(null);
   else if (act === 'ip') openIP(d);
+  else if (act === 'renew') startDhcp(d);
+  else if (act === 'web') openWeb(d);
+  else if (act === 'cmd') openTerm(d);
+  else if (act === 'cli') openCli(d);
+  else if (act === 'console') openCli(consoleTarget(d), d);
+  else if (act === 'svc') openSvc(d);
   else if (act === 'delete') removeDevice(d);
   else if (act === 'export') {
     d.visual.updateMatrixWorld(true);
@@ -1140,28 +1275,57 @@ function openIP(d) {
   const inp = (id, v, ph) => `<input type="text" id="${id}" value="${esc(v)}" placeholder="${ph}">`;
   let h = `<label>Nombre del equipo${inp('fName', d.name, '')}</label>`;
   if (d.def.host) {
-    h += `<label>Dirección IPv4${inp('fIp', d.ip, '192.168.1.10')}</label>
+    const dhcp = d.ipMode === 'dhcp';
+    h += `<div class="row"><label class="chk"><input type="radio" name="fMode" value="static"${dhcp ? '' : ' checked'}>Estática</label>
+        <label class="chk"><input type="radio" name="fMode" value="dhcp"${dhcp ? ' checked' : ''}>DHCP</label></div>
+      <label>Dirección IPv4${inp('fIp', d.ip, '192.168.1.10')}</label>
       <label>Máscara de subred${inp('fMask', d.mask, '255.255.255.0')}</label>
-      <label>Puerta de enlace${inp('fGw', d.gw, '192.168.1.1')}</label>`;
+      <label>Puerta de enlace${inp('fGw', d.gw, '192.168.1.1')}</label>
+      <label>Servidor DNS${inp('fDns', d.dns, '192.168.1.100')}</label>
+      <div class="note" id="fDhcpNote">Con DHCP, al guardar el equipo pide la configuración en difusión (Discover → Offer → Request → Ack).</div>`;
   } else if (isL3(d)) {
-    const rows = d.kind === 'l3switch' ? [['svi', 'Vlan1', d.svi.ip, d.svi.mask]] : [];
+    const rows = d.kind === 'l3switch' ? Object.entries(d.svis).map(([v, o]) => ['v' + v, 'Vlan' + v, o.ip, o.mask]) : [];
     d.ports.forEach((p, i) => { if (p.type === 'copper' || p.type === 'fiber') rows.push([i, p.short, p.ip, p.mask]); });
     h += `<div class="note">${d.kind === 'l3switch'
         ? 'Vlan1 es la interfaz virtual (SVI) de los puertos de switch. Un puerto con IP pasa a ser puerto enrutado (no switchport) y deja de conmutar.'
         : 'Deja vacía la IP de las interfaces que no uses.'}</div>
-      <div class="grid3"><b class="note">Interfaz</b><b class="note">Dirección IP</b><b class="note">Máscara</b>${rows.map(([k, s, ip, m]) =>
-        `<span>${esc(s)}</span><input type="text" data-ifip="${k}" value="${esc(ip)}" placeholder="—"><input type="text" data-ifmask="${k}" value="${esc(m)}">`).join('')}</div>
+      <div class="grid3 on4"><b class="note">Interfaz</b><b class="note">Dirección IP</b><b class="note">Máscara</b><b class="note" title="Desmarcada = shutdown">Encendida</b>${rows.map(([k, s, ip, m]) => {
+        const off = String(k).startsWith('v') ? d.svis[k.slice(1)].shutdown : d.ports[k].shutdown;
+        return `<span>${esc(s)}</span><input type="text" data-ifip="${k}" value="${esc(ip)}" placeholder="—"><input type="text" data-ifmask="${k}" value="${esc(m)}"><input type="checkbox" data-ifon="${k}"${off ? '' : ' checked'}>`;
+      }).join('')}</div>
       <label>Rutas estáticas (una por línea: red máscara siguiente-salto)
         <textarea id="fRoutes" rows="3" placeholder="192.168.2.0 255.255.255.0 192.168.3.2">${esc(d.routes.map(r => `${r.net} ${r.mask} ${r.via}`).join('\n'))}</textarea></label>`;
+  } else if (d.kind === 'switch') {
+    h += `<div class="note">Equipo de capa 2: no necesita IP para reenviar tramas. La IP de Vlan1 solo sirve para gestionarlo (ping, acceso remoto).</div>
+      <label>IP de gestión (Vlan1)${inp('fSviIp', d.svi.ip, '192.168.1.2')}</label>
+      <label>Máscara${inp('fSviMask', d.svi.mask, '255.255.255.0')}</label>
+      <label>Puerta de enlace (ip default-gateway)${inp('fDgw', d.defaultGw, '192.168.1.1')}</label>`;
   } else {
     h += `<div class="note">${d.def.passive ? 'Elemento pasivo: no tiene IP.' : 'Equipo de capa 2: no necesita IP para reenviar tramas.'}</div>`;
   }
-  $('#fTitle').textContent = d.def.host || isL3(d) ? `Configuración IP — ${d.def.label}` : `Nombre — ${d.def.label}`;
+  if (hasSvi(d)) {
+    const ports = d.ports.map((p, i) => [p, i]).filter(([p]) => isL2Port(p));
+    h += `<div class="svc"><b>VLAN y puertos de switch</b>
+      <label>VLAN (una por línea: número nombre; la 1 siempre existe)
+        <textarea id="fVlans" rows="3" placeholder="10 VENTAS&#10;20 ADMIN">${esc([...d.vlans].filter(([v]) => v !== 1).map(([v, n]) => `${v} ${n}`).join('\n'))}</textarea></label>
+      <div class="grid3"><b class="note">Puerto</b><b class="note">Modo</b><b class="note">VLAN de acceso</b>${ports.map(([p, i]) =>
+        `<span>${esc(p.short)}</span><select data-pmode="${i}"><option value="access"${p.mode === 'trunk' ? '' : ' selected'}>Acceso</option><option value="trunk"${p.mode === 'trunk' ? ' selected' : ''}>Troncal</option></select><input type="text" data-pvlan="${i}" value="${p.vlan}">`).join('')}</div>
+      <span class="note">Troncal: lleva todas las VLAN etiquetadas (802.1Q), con la 1 como nativa. La VLAN nativa y las permitidas se cambian en la CLI.</span></div>`;
+  }
+  $('#fTitle').textContent = d.def.host || isL3(d) || d.kind === 'switch' ? `Configuración IP — ${d.def.label}` : `Nombre — ${d.def.label}`;
   $('#fBody').innerHTML = h;
   $('#fErr').textContent = '';
   modalBg.hidden = false;
-  $(d.def.host ? '#fIp' : '#fName').focus();
+  if (d.def.host) syncIpMode();
+  $(d.def.host && d.ipMode !== 'dhcp' ? '#fIp' : d.kind === 'switch' ? '#fSviIp' : '#fName').focus();
 }
+// En modo DHCP los campos los rellena el servidor
+function syncIpMode() {
+  const dhcp = document.querySelector('[name=fMode]:checked')?.value === 'dhcp';
+  ['#fIp', '#fMask', '#fGw', '#fDns'].forEach(id => $(id).disabled = dhcp);
+  $('#fDhcpNote').hidden = !dhcp;
+}
+$('#fBody').addEventListener('change', e => { if (e.target.name === 'fMode') syncIpMode(); });
 function closeIP() { modalBg.hidden = true; ipTarget = null; }
 $('#fCancel').addEventListener('click', closeIP);
 modalBg.addEventListener('click', e => { if (e.target === modalBg) closeIP(); });
@@ -1177,21 +1341,46 @@ $('#ipForm').addEventListener('submit', e => {
   const checkIp = (ip, mask, what) => !IPRE.test(ip) ? `${what}: dirección IPv4 no válida.`
     : !validMask(mask) ? `${what}: máscara no válida.`
     : taken.has(ip) ? `${what}: la IP ${ip} ya la usa otro equipo.` : null;
-  if (d.def.host) {
-    const ip = val('#fIp'), mask = val('#fMask'), gw = val('#fGw');
+  // VLAN y modo de los puertos (switches): se valida todo antes de aplicar nada
+  let vlanConf = null;
+  if (hasSvi(d)) {
+    const vlans = new Map([[1, d.vlans.get(1)]]);
+    for (const raw of $('#fVlans').value.split('\n')) {
+      const tt = raw.trim();
+      if (!tt) continue;
+      const [num, ...nm] = tt.split(/\s+/), v = Number(num);
+      if (!Number.isInteger(v) || v < 2 || v > 4094 || (v >= 1002 && v <= 1005)) return fail(`VLAN no válida: «${tt}» (número de 2 a 4094, salvo 1002-1005).`);
+      vlans.set(v, (nm.join('_') || vlanName(v)).slice(0, 32));
+    }
+    const ports = [];
+    for (const sel of document.querySelectorAll('[data-pmode]')) {
+      const i = Number(sel.dataset.pmode), v = Number(document.querySelector(`[data-pvlan="${i}"]`).value.trim());
+      if (!vlans.has(v)) return fail(`${d.ports[i].short}: la VLAN ${v} no está en la lista de VLAN.`);
+      ports.push({ p: d.ports[i], mode: sel.value, vlan: v });
+    }
+    vlanConf = { vlans, ports };
+  }
+  let dhcpStart = false;
+  if (d.def.host && document.querySelector('[name=fMode]:checked').value === 'dhcp') {
+    d.ipMode = 'dhcp';
+    dhcpStart = true;
+  } else if (d.def.host) {
+    const ip = val('#fIp'), mask = val('#fMask'), gw = val('#fGw'), dns = val('#fDns');
     const m = ip ? checkIp(ip, mask, 'IP') : validMask(mask) ? null : 'Máscara no válida.';
     if (m) return fail(m);
     if (gw && !IPRE.test(gw)) return fail('Puerta de enlace no válida.');
     if (gw && ip && netOf(gw, mask) !== netOf(ip, mask)) return fail('La puerta de enlace debe estar en la misma red que la IP.');
-    Object.assign(d, { ip, mask, gw });
+    if (dns && !IPRE.test(dns)) return fail('Servidor DNS no válido.');
+    cancelDhcp(d);
+    Object.assign(d, { ip, mask, gw, dns, ipMode: 'static' });
     d.arp.clear();
-    log(`${name}: IP ${ip || '(sin IP)'} / ${mask}${gw ? ' · puerta de enlace ' + gw : ''}`);
+    log(`${name}: IP ${ip || '(sin IP)'} / ${mask}${gw ? ' · puerta de enlace ' + gw : ''}${dns ? ' · DNS ' + dns : ''}`);
   } else if (isL3(d)) {
     const conf = [];
     for (const el of document.querySelectorAll('[data-ifip]')) {
       const k = el.dataset.ifip, ip = el.value.trim();
       const mask = document.querySelector(`[data-ifmask="${k}"]`).value.trim();
-      const label = k === 'svi' ? 'Vlan1' : d.ports[Number(k)].short;
+      const label = k.startsWith('v') ? 'Vlan' + k.slice(1) : d.ports[Number(k)].short;
       if (ip) {
         const m = checkIp(ip, mask, label);
         if (m) return fail(m);
@@ -1208,18 +1397,1065 @@ $('#ipForm').addEventListener('submit', e => {
       if (!IPRE.test(net) || !validMask(mask) || !IPRE.test(via)) return fail(`Ruta no válida: «${raw.trim()}». Formato: red máscara siguiente-salto.`);
       routes.push({ net: intToIp(netOf(net, mask)), mask, via });
     }
-    conf.forEach(({ k, ip, mask }) => Object.assign(k === 'svi' ? d.svi : d.ports[Number(k)], { ip, mask }));
+    conf.forEach(({ k, ip, mask }) => {
+      const target = k.startsWith('v') ? d.svis[k.slice(1)] : d.ports[Number(k)];
+      Object.assign(target, { ip, mask, shutdown: !document.querySelector(`[data-ifon="${k}"]`).checked });
+      if (!k.startsWith('v') && d.kind === 'l3switch' && ip) target.routed = true;
+    });
+    rebuildAll();
     d.routes = routes;
     d.arp.clear();
     for (const [mac, p] of d.macTable) if (p.ip) d.macTable.delete(mac);
     log(`${name}: ${l3Ifaces(d).length} interfaz(es) con IP · ${routes.length} ruta(s) estática(s)`);
+  } else if (d.kind === 'switch') {
+    const ip = val('#fSviIp'), mask = val('#fSviMask'), gw = val('#fDgw');
+    const m = ip ? checkIp(ip, mask, 'Vlan1') : null;
+    if (m) return fail(m);
+    if (gw && !IPRE.test(gw)) return fail('Puerta de enlace no válida.');
+    Object.assign(d.svi, { ip, mask: ip ? mask : '255.255.255.0' });
+    d.defaultGw = gw;
+    d.arp.clear();
+    log(`${name}: IP de gestión ${ip ? ip + '/' + maskBits(mask) : '(ninguna)'}${gw ? ' · ip default-gateway ' + gw : ''}`);
+  }
+  if (vlanConf) {
+    d.vlans = vlanConf.vlans;
+    vlanConf.ports.forEach(({ p, mode, vlan }) => { Object.assign(p, { mode, vlan }); if (mode === 'trunk') p.trunkEnc = 'dot1q'; });
+    d.macTable.clear();
+    rebuildAll();
   }
   if (name !== d.name) log(`${d.name} → ${name}`);
   d.name = name;
   d.updateLabel();
   closeIP();
   renderProps();
+  if (dhcpStart) startDhcp(d);
 });
+
+/* ---------- Modal de servicios del servidor ---------- */
+const svcBg = $('#svcBg');
+let svcTarget = null;
+function openSvc(d) {
+  svcTarget = d;
+  const s = d.services, inp = (id, v, ph) => `<input type="text" id="${id}" value="${esc(v)}" placeholder="${ph}">`;
+  const chk = (id, on, txt) => `<label class="chk"><input type="checkbox" id="${id}"${on ? ' checked' : ''}><b>${txt}</b></label>`;
+  $('#sTitle').textContent = `Servicios — ${d.name}`;
+  $('#sBody').innerHTML = `${d.ip ? '' : '<div class="ferr">El servidor no tiene IP: configúrala para que pueda atender peticiones.</div>'}
+    <div class="svc">${chk('sDhcpOn', s.dhcp.on, 'DHCP · puertos UDP 67/68')}
+      <div class="grid2">
+        <label>IP inicial del pool${inp('sStart', s.dhcp.start, '192.168.1.50')}</label>
+        <label>Nº máximo de clientes${inp('sMax', s.dhcp.max, '50')}</label>
+        <label>Máscara de subred${inp('sMask', s.dhcp.mask, '255.255.255.0')}</label>
+        <label>Puerta de enlace${inp('sGw', s.dhcp.gw, '192.168.1.1')}</label>
+        <label>Servidor DNS${inp('sDns', s.dhcp.dns, d.ip || '192.168.1.100')}</label>
+      </div>
+      <span class="note">Las difusiones no atraviesan routers: el servidor solo atiende a los clientes de su misma red.</span></div>
+    <div class="svc">${chk('sDnsOn', s.dns.on, 'DNS · puerto UDP 53')}
+      <label>Registros (uno por línea: nombre tipo valor; tipos A y CNAME)
+        <textarea id="sRecords" rows="5" placeholder="www.smx.lan A 192.168.1.100&#10;intranet.smx.lan CNAME www.smx.lan">${esc(s.dns.records.map(r => `${r.name} ${r.type} ${r.value}`).join('\n'))}</textarea></label></div>
+    <div class="svc">${chk('sHttpOn', s.http.on, 'HTTP · puerto TCP 80')}
+      <label>Página index.html<textarea id="sHtml" rows="7">${esc(s.http.html)}</textarea></label></div>`;
+  $('#sErr').textContent = '';
+  svcBg.hidden = false;
+}
+function closeSvc() { svcBg.hidden = true; svcTarget = null; }
+$('#sCancel').addEventListener('click', closeSvc);
+svcBg.addEventListener('click', e => { if (e.target === svcBg) closeSvc(); });
+const NAMERE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/;
+$('#svcForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const d = svcTarget, s = d.services;
+  const fail = m => { $('#sErr').textContent = m; };
+  const val = id => $(id).value.trim();
+  const dhcpOn = $('#sDhcpOn').checked;
+  const start = val('#sStart'), mask = val('#sMask'), gw = val('#sGw'), dns = val('#sDns'), max = Number(val('#sMax'));
+  if (dhcpOn) {
+    if (!IPRE.test(start)) return fail('DHCP: la IP inicial del pool no es válida.');
+    if (!validMask(mask)) return fail('DHCP: máscara no válida.');
+    if (!Number.isInteger(max) || max < 1 || max > 1000) return fail('DHCP: el nº máximo de clientes debe estar entre 1 y 1000.');
+    if (gw && !IPRE.test(gw)) return fail('DHCP: puerta de enlace no válida.');
+    if (gw && netOf(gw, mask) !== netOf(start, mask)) return fail('DHCP: la puerta de enlace debe estar en la red del pool.');
+    if (dns && !IPRE.test(dns)) return fail('DHCP: servidor DNS no válido.');
+  }
+  const records = [];
+  for (const raw of $('#sRecords').value.split('\n')) {
+    const t = raw.trim();
+    if (!t) continue;
+    const [name = '', type = '', value = ''] = t.split(/\s+/);
+    const n = name.toLowerCase().replace(/\.$/, ''), ty = type.toUpperCase(), v = value.toLowerCase().replace(/\.$/, '');
+    if (!NAMERE.test(n)) return fail(`DNS: nombre no válido en «${t}».`);
+    if (ty === 'A' && !IPRE.test(v)) return fail(`DNS: un registro A necesita una IPv4: «${t}».`);
+    if (ty === 'CNAME' && !NAMERE.test(v)) return fail(`DNS: un CNAME apunta a otro nombre: «${t}».`);
+    if (ty !== 'A' && ty !== 'CNAME') return fail(`DNS: tipo «${type}» no admitido (usa A o CNAME).`);
+    if (records.some(r => r.name === n && (r.type === 'CNAME' || ty === 'CNAME'))) return fail(`DNS: ${n} tiene un CNAME y otro registro a la vez.`);
+    records.push({ name: n, type: ty, value: v });
+  }
+  Object.assign(s.dhcp, { on: dhcpOn, start, mask, gw, dns, max: max || s.dhcp.max });
+  s.dns.on = $('#sDnsOn').checked;
+  s.dns.records = records;
+  s.http.on = $('#sHttpOn').checked;
+  s.http.html = $('#sHtml').value;
+  log(`${d.name}: DHCP ${s.dhcp.on ? 'activo (pool ' + start + ', ' + s.dhcp.max + ' clientes)' : 'apagado'} · DNS ${s.dns.on ? 'activo (' + records.length + ' registros)' : 'apagado'} · HTTP ${s.http.on ? 'activo' : 'apagado'}`);
+  closeSvc();
+  renderProps();
+});
+
+/* ---------- Navegador web del equipo final ---------- */
+const webBg = $('#webBg');
+let webDev = null, webOp = null;
+function openWeb(d) {
+  webDev = d;
+  webOp = null;
+  $('#webTitle').textContent = `Navegador web — ${d.name}${d.ip ? ' (' + d.ip + ')' : ''}`;
+  $('#webStatus').textContent = d.dns ? `Servidor DNS: ${d.dns}` : 'Este equipo no tiene servidor DNS: solo podrá abrir páginas por IP.';
+  $('#webFrame').srcdoc = '';
+  webBg.hidden = false;
+  $('#webUrl').focus();
+}
+function closeWeb() { webBg.hidden = true; webDev = null; webOp = null; }
+$('#webClose').addEventListener('click', closeWeb);
+webBg.addEventListener('click', e => { if (e.target === webBg) closeWeb(); });
+$('#webForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const host = $('#webUrl').value.trim().replace(/^https?:\/\//i, '').split('/')[0].toLowerCase().replace(/\.$/, '');
+  if (!host) return;
+  $('#webUrl').value = 'http://' + host;
+  $('#webFrame').srcdoc = '';
+  webOp = startWeb(webDev, host);
+});
+function webStatus(op, msg) { if (webOp === op) $('#webStatus').textContent = msg; }
+
+/* ---------- Símbolo del sistema del equipo final ---------- */
+// La misma ventana sirve al Símbolo del sistema y a la CLI de IOS: cada sesión aporta su prompt y su intérprete
+const termBg = $('#termBg'), termOut = $('#termOut'), termIn = $('#termIn');
+let term = null, termBusy = false, termAbort = false, termHi = 0;
+const termHist = [];
+function openSession(s, intro) {
+  term = s;
+  termAbort = false;
+  $('#termTitle').textContent = s.title;
+  termOut.textContent = intro;
+  termBg.hidden = false;
+  syncPrompt();
+  termIn.disabled = termBusy;
+  termIn.focus();
+}
+function syncPrompt() {
+  if (!term) return;
+  $('#termPrompt').textContent = term.prompt();
+  termIn.type = term.secret ? 'password' : 'text';
+}
+function openTerm(d) {
+  openSession({ dev: d, host: d, title: `Símbolo del sistema — ${d.name}`, prompt: () => 'C:\\>', run: line => line && runCommand(d, line) },
+    'Simulador de Redes SMX [Versión 1.0]\nEscribe «help» para ver los comandos disponibles.\n\n');
+}
+function closeTerm() { termAbort = true; termBg.hidden = true; term = null; }
+$('#termClose').addEventListener('click', closeTerm);
+termBg.addEventListener('click', e => { if (e.target === termBg) closeTerm(); });
+$('#termBox').addEventListener('click', e => { if (!e.target.closest('button') && !getSelection().toString()) termIn.focus(); });
+function tprint(s = '') { termOut.textContent += s + '\n'; termOut.scrollTop = termOut.scrollHeight; }
+termIn.addEventListener('keydown', async e => {
+  if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+    e.preventDefault();
+    termHi = Math.max(0, Math.min(termHist.length, termHi + (e.key === 'ArrowUp' ? -1 : 1)));
+    termIn.value = termHist[termHi] || '';
+    return;
+  }
+  if (e.key !== 'Enter' || termBusy || !term) return;
+  const s = term, secret = s.secret, line = secret ? termIn.value : termIn.value.trim();
+  termIn.value = '';
+  tprint(s.prompt() + (secret ? '' : line));
+  if (line && !secret) { termHist.push(line); termHi = termHist.length; }
+  termBusy = true; termAbort = false; termIn.disabled = true;
+  try { await s.run(line); } catch (err) { tprint('Error: ' + err.message); }
+  termBusy = false; termIn.disabled = false;
+  if (term === s) { if (s.blankAfter !== false && line) tprint(); syncPrompt(); termIn.focus(); }
+});
+addEventListener('keydown', e => {
+  if (termBusy && !termBg.hidden && e.ctrlKey && e.key.toLowerCase() === 'c' && !getSelection().toString()) { termAbort = true; tprint('^C'); }
+});
+
+const winMac = mac => mac.replace(/\./g, '').match(/../g).join('-');
+// Línea de ipconfig con los puntos de relleno de Windows
+function dots(label, value) {
+  const s = '   ' + label, n = Math.max(2, 44 - s.length);
+  return `${s}${n % 2 ? ' ' : ''}${'. '.repeat(Math.floor(n / 2))}: ${value}`;
+}
+function ipconfigText(d, all) {
+  const nic = hostNic(d), wifi = nic.type === 'wireless';
+  const connected = wifi ? wlinks.some(l => l.b === nic) : !!nic.link?.up;
+  const out = ['', 'Configuración IP de Windows', ''];
+  if (all) out.push(dots('Nombre de host', d.name), '');
+  out.push(`Adaptador de ${wifi ? 'LAN inalámbrica' : 'Ethernet'} ${nic.name}:`, '');
+  if (all) out.push(dots('Descripción', wifi ? 'Tarjeta de red inalámbrica' : 'Tarjeta de red Ethernet'), dots('Dirección física', winMac(nic.mac)),
+    dots('DHCP habilitado', d.ipMode === 'dhcp' ? 'sí' : 'no'));
+  if (!connected) { out.push(dots('Estado de los medios', 'medios desconectados')); return out.join('\n'); }
+  if (d.ip) {
+    out.push(dots(d.ip.startsWith('169.254.') ? 'Dirección IPv4 de configuración automática' : 'Dirección IPv4', d.ip),
+      dots('Máscara de subred', d.mask), dots('Puerta de enlace predeterminada', d.gw));
+    if (all && d.ipMode === 'dhcp' && d.dhcpServer) out.push(dots('Servidor DHCP', d.dhcpServer));
+    if (all) out.push(dots('Servidores DNS', d.dns));
+  } else out.push(dots('Dirección IPv4', '(sin configurar)'));
+  return out.join('\n');
+}
+// Traduce un nombre con el DNS del equipo; devuelve { ip } o { error } con el texto de Windows
+async function termResolve(d, name, verb) {
+  if (IPRE.test(name)) return { ip: name };
+  const notFound = `La solicitud de ${verb} no pudo encontrar el host ${name}. Compruebe el nombre y vuelva a intentarlo.`;
+  if (!d.dns || !d.ip) return { error: notFound };
+  const r = await dnsQuery(d, name.toLowerCase().replace(/\.$/, ''), d.dns);
+  if (r.error || r.rcode !== 'NOERROR') return { error: notFound };
+  return { ip: r.answers[r.answers.length - 1].value };
+}
+const msText = ttl => { const n = Math.max(0, 64 - ttl - 1); return n ? `${n} ms` : '<1 ms'; };
+function simWarn() { if (sim.mode === 'sim' && sim.paused) tprint('(Modo Simulación: pulsa «Reproducir» o «Paso» para que avancen los paquetes)'); }
+
+async function runCommand(d, line) {
+  const [cmd = '', ...args] = line.split(/\s+/);
+  const c = cmd.toLowerCase(), a = args.map(x => x.toLowerCase());
+  if (c === 'help' || c === '?') {
+    tprint(['Comandos disponibles:',
+      '  ipconfig [/all | /release | /renew]   Configuración IP de la tarjeta de red',
+      '  ping [-n N] destino                    Comprueba si un equipo responde (ICMP)',
+      '  tracert destino                        Muestra los routers del camino',
+      '  nslookup nombre [servidor]             Pregunta un nombre al servidor DNS',
+      '  arp -a | arp -d                        Muestra o vacía la tabla ARP',
+      '  hostname                               Nombre del equipo',
+      '  cls                                    Limpia la pantalla',
+      '  exit                                   Cierra la ventana',
+      'Ctrl+C detiene el comando en curso.'].join('\n'));
+  } else if (c === 'cls') termOut.textContent = '';
+  else if (c === 'exit') closeTerm();
+  else if (c === 'hostname') tprint(d.name);
+  else if (c === 'ipconfig') {
+    if (!a.length || a[0] === '/all') { tprint(ipconfigText(d, a[0] === '/all')); return; }
+    if (a[0] === '/release') {
+      if (d.ipMode !== 'dhcp') { tprint('\nNo se puede realizar ninguna operación en el adaptador: DHCP no está habilitado (IP estática).'); return; }
+      devices.forEach(x => dhcpStore(x)?.leases.delete(hostNic(d).mac));
+      cancelDhcp(d);
+      Object.assign(d, { ip: '', gw: '', dns: '', dhcpServer: '' });
+      d.arp.clear(); d.updateLabel(); renderProps();
+      log(`${d.name}: ipconfig /release — devuelve su IP al servidor DHCP`);
+      tprint(ipconfigText(d, false));
+      return;
+    }
+    if (a[0] === '/renew') {
+      if (d.ipMode !== 'dhcp') { tprint('\nNo se puede realizar ninguna operación en el adaptador: DHCP no está habilitado (IP estática).'); return; }
+      simWarn();
+      const ok = await new Promise(res => startDhcp(d, res));
+      if (!ok) tprint('\nError al renovar la interfaz: se agotó el tiempo de espera mientras se intentaba contactar con el servidor DHCP.');
+      tprint(ipconfigText(d, false));
+      return;
+    }
+    tprint(`Opción no válida: ${args[0]}. Usa ipconfig, ipconfig /all, ipconfig /release o ipconfig /renew.`);
+  } else if (c === 'arp') {
+    if (a[0] === '-d') { d.arp.clear(); renderProps(); tprint('Tabla ARP vaciada.'); return; }
+    if (a[0] !== '-a') { tprint('Uso: arp -a (mostrar) | arp -d (vaciar)'); return; }
+    if (!d.arp.size) { tprint('No se encontraron entradas ARP.'); return; }
+    tprint(`\nInterfaz: ${d.ip || '0.0.0.0'} --- 0x2\n  Dirección de Internet          Dirección física      Tipo`);
+    d.arp.forEach((e, ip) => tprint(`  ${ip.padEnd(31)}${winMac(e.mac).padEnd(22)}dinámico`));
+  } else if (c === 'ping') {
+    let n = 4, i = 0;
+    if (a[0] === '-n') { n = Math.max(1, Math.min(50, Number(a[1]) || 4)); i = 2; }
+    const target = args[i];
+    if (!target) { tprint('Uso: ping [-n N] destino'); return; }
+    simWarn();
+    const r = await termResolve(d, target, 'ping');
+    if (r.error) { tprint(r.error); return; }
+    tprint(`\nHaciendo ping a ${IPRE.test(target) ? r.ip : `${target} [${r.ip}]`} con 32 bytes de datos:`);
+    const local = r.ip.startsWith('127.') || (d.ip && r.ip === d.ip);
+    if (!local && (!d.ip || resolveRoute(d, r.ip).error)) {
+      for (let k = 0; k < n; k++) tprint('PING: error en la transmisión. Error general.');
+      return;
+    }
+    let ok = 0, sent = 0;
+    for (let k = 0; k < n && !termAbort; k++) {
+      sent++;
+      const res = local ? { type: 0, from: r.ip, ttl: 64 } : await pingIp(d, r.ip);
+      const ms = Math.max(0, 64 - res.ttl - 1);
+      if (res.timeout) tprint('Tiempo de espera agotado para esta solicitud.');
+      else if (res.type === 0) { ok++; tprint(`Respuesta desde ${res.from}: bytes=32 tiempo${ms ? '=' + ms + 'ms' : '<1m'} TTL=${res.ttl}`); }
+      else tprint(`Respuesta desde ${res.from}: ${res.type === 3 ? 'Host de destino inaccesible' : 'TTL caducado en tránsito'}.`);
+    }
+    tprint(`\nEstadísticas de ping para ${r.ip}:\n    Paquetes: enviados = ${sent}, recibidos = ${ok}, perdidos = ${sent - ok}\n    (${Math.round((sent - ok) / sent * 100)}% perdidos),`);
+  } else if (c === 'tracert') {
+    const target = args[0];
+    if (!target) { tprint('Uso: tracert destino'); return; }
+    simWarn();
+    const r = await termResolve(d, target, 'traza');
+    if (r.error) { tprint(`No se puede resolver el nombre de destino ${target}.`); return; }
+    tprint(`\nTraza a ${IPRE.test(target) ? 'la dirección ' + r.ip : `la dirección ${target} [${r.ip}]`}\nsobre un máximo de 30 saltos:\n`);
+    if (!d.ip || resolveRoute(d, r.ip).error) { tprint('Error de transmisión: Error general.'); return; }
+    let lost = 0;
+    for (let ttl = 1; ttl <= 30 && !termAbort; ttl++) {
+      const res = await pingIp(d, r.ip, ttl);
+      const n = String(ttl).padStart(3);
+      if (res.timeout) {
+        tprint(`${n}     *        *        *     Tiempo de espera agotado para esta solicitud.`);
+        if (++lost === 3) { tprint('\n(Traza detenida: tres saltos seguidos sin respuesta.)'); return; }
+        continue;
+      }
+      lost = 0;
+      const t = msText(res.ttl).padStart(7);
+      if (res.type === 3) { tprint(`${n}  ${t}  ${t}  ${t}  ${res.from} informa: Host de destino inaccesible.`); break; }
+      tprint(`${n}  ${t}  ${t}  ${t}  ${res.from}`);
+      if (res.type === 0) break;
+    }
+    tprint('\nTraza completa.');
+  } else if (c === 'nslookup') {
+    const name = a[0], server = a[1] || d.dns;
+    if (!name) { tprint('Uso: nslookup nombre [servidor]'); return; }
+    if (!server) { tprint('*** No se puede encontrar la dirección del servidor DNS: el equipo no tiene servidor DNS configurado.'); return; }
+    if (!IPRE.test(server)) { tprint(`*** ${server} no es una dirección IP de servidor válida.`); return; }
+    if (!d.ip) { tprint('*** El equipo no tiene dirección IP.'); return; }
+    simWarn();
+    tprint(`Servidor:  Desconocido\nAddress:  ${server}\n`);
+    const res = await dnsQuery(d, name.replace(/\.$/, ''), server);
+    if (res.error) { tprint('DNS request timed out.\n    timeout was 2 seconds.\n*** Se agotó el tiempo de espera de la solicitud'); return; }
+    if (res.rcode !== 'NOERROR') { tprint(`*** Desconocido no encuentra ${name}: Non-existent domain`); return; }
+    const last = res.answers[res.answers.length - 1], aliases = res.answers.filter(x => x.type === 'CNAME').map(x => x.name);
+    tprint(`Nombre:  ${last.name}\nAddress:  ${last.value}`);
+    if (aliases.length) tprint(`Aliases:  ${aliases.join('\n          ')}`);
+  } else {
+    tprint(`"${cmd}" no se reconoce como un comando interno o externo,\nprograma o archivo por lotes ejecutable. Escribe «help» para ver los comandos.`);
+  }
+}
+
+/* ---------- CLI de Cisco IOS (routers y switches) ---------- */
+// Equipo al otro lado del cable de consola del puerto RS232
+const consoleTarget = d => { const p = d.ports.find(x => x.type === 'rs232'); return p?.link ? p.link.other(p).device : null; };
+const IOS_MODES = { user: '>', priv: '#', config: '(config)#', if: '(config-if)#', range: '(config-if-range)#', subif: '(config-subif)#',
+  line: '(config-line)#', dhcp: '(dhcp-config)#', vlan: '(config-vlan)#' };
+const AMB = Symbol('ambiguo');
+// Palabra clave abreviada: «conf» → configure; si encaja con varias, es ambigua
+function W(tok, opts) {
+  tok = tok.toLowerCase();
+  if (opts.includes(tok)) return tok;
+  const m = opts.filter(o => o.startsWith(tok));
+  return m.length === 1 ? m[0] : m.length ? AMB : null;
+}
+class CliError { constructor(kind, i = 0) { this.kind = kind; this.i = i; } }
+function need(t, i, opts) {
+  if (t[i] === undefined) throw new CliError('incomplete');
+  const w = W(t[i], opts);
+  if (w === null) throw new CliError('invalid', i);
+  if (w === AMB) throw new CliError('amb', i);
+  return w;
+}
+function needIp(t, i) {
+  if (t[i] === undefined) throw new CliError('incomplete');
+  if (!IPRE.test(t[i])) throw new CliError('invalid', i);
+  return t[i];
+}
+function needMask(t, i) {
+  const m = needIp(t, i);
+  if (!validMask(m)) throw new CliError('invalid', i);
+  return m;
+}
+const twrite = s => { termOut.textContent += s; termOut.scrollTop = termOut.scrollHeight; };
+const tokPos = (raw, i) => { const re = /\S+/g; let m, k = 0; while ((m = re.exec(raw))) { if (k++ === i) return m.index; } return raw.length; };
+const IOS_HELP = {
+  user: [['enable', 'Entra en el modo privilegiado (#)'], ['exit', 'Cierra la sesión'], ['ping', 'Envía mensajes de eco ICMP'],
+    ['show', 'Muestra información (show ip interface brief, show ip route…)'], ['traceroute', 'Traza la ruta hacia un destino']],
+  priv: [['configure', 'Entra en el modo de configuración (configure terminal)'], ['copy', 'Guarda la configuración (copy running-config startup-config)'],
+    ['disable', 'Vuelve al modo usuario (>)'], ['exit', 'Cierra la sesión'], ['ping', 'Envía mensajes de eco ICMP'],
+    ['show', 'running-config, startup-config, ip interface brief, ip route, arp, mac address-table, interfaces, ip dhcp binding, version'],
+    ['traceroute', 'Traza la ruta hacia un destino'], ['write', 'Guarda la configuración (write memory)']],
+  config: [['banner', 'banner motd #texto#'], ['do', 'Ejecuta un comando del modo privilegiado (do show …)'], ['enable', 'enable secret | enable password'],
+    ['end', 'Vuelve al modo privilegiado'], ['exit', 'Sale del modo de configuración'], ['hostname', 'Cambia el nombre del equipo'],
+    ['interface', 'Configura una interfaz (interface g0/0, interface vlan 1)'],
+    ['ip', 'ip route | ip dhcp pool | ip dhcp excluded-address | ip default-gateway | ip routing'], ['line', 'line console 0 | line vty 0 4'],
+    ['no', 'Deshace un comando'], ['service', 'service password-encryption'],
+    ['spanning-tree', 'spanning-tree vlan 1 priority N | spanning-tree vlan 1 root primary (switches)'], ['vlan', 'Crea una VLAN y entra a ponerle nombre (switches)']],
+  if: [['description', 'Texto descriptivo'], ['do', 'Ejecuta un comando del modo privilegiado'],
+    ['encapsulation', 'encapsulation dot1Q N (subinterfaz del router: Gi0/0.10)'], ['end', 'Vuelve al modo privilegiado'],
+    ['exit', 'Vuelve a (config)'], ['interface', 'Pasa a otra interfaz (interface range fa0/1 - 4)'], ['ip', 'ip address IP MÁSCARA | ip helper-address IP'],
+    ['no', 'no shutdown | no ip address | no ip helper-address | no switchport'], ['shutdown', 'Apaga la interfaz'],
+    ['switchport', 'mode access|trunk · access vlan N · trunk native vlan N · trunk allowed vlan 10,20 · trunk encapsulation dot1q (SW capa 3)']],
+  vlan: [['end', 'Vuelve al modo privilegiado'], ['exit', 'Vuelve a (config)'], ['name', 'Nombre de la VLAN'], ['no', 'no name']],
+  line: [['end', 'Vuelve al modo privilegiado'], ['exit', 'Vuelve a (config)'], ['login', 'Pide la contraseña al entrar'], ['no', 'no login | no password'],
+    ['password', 'Contraseña de la línea']],
+  dhcp: [['default-router', 'Puerta de enlace que se entrega'], ['dns-server', 'Servidor DNS que se entrega'], ['end', 'Vuelve al modo privilegiado'],
+    ['exit', 'Vuelve a (config)'], ['network', 'Red y máscara del pool (network 192.168.1.0 255.255.255.0)'], ['no', 'Deshace un comando']]
+};
+
+function openCli(d, host = null) {
+  if (!d?.ios) { showToast('Ese equipo no tiene CLI de IOS.'); return; }
+  const s = { dev: d, host, mode: 'idle', ifs: [], pool: null, line: null, wait: null, tries: 0, blankAfter: false,
+    title: host ? `Terminal de ${host.name} → ${d.name} (cable de consola)` : `CLI — ${d.name}`,
+    get secret() { return !!this.wait; },
+    prompt() { return this.wait ? 'Password: ' : this.mode === 'idle' ? '' : d.name + IOS_MODES[this.mode]; },
+    run: line => iosRun(s, line) };
+  openSession(s, (host ? `Conectado por el cable de consola a ${d.name} (9600 baudios, 8N1).\n` : '') +
+    `\n${d.name} con0 is now available\n\nPress RETURN to get started.\n`);
+}
+function iosIdle(s) { s.mode = 'idle'; s.wait = null; tprint(`\n${s.dev.name} con0 is now available\n\nPress RETURN to get started.\n`); }
+async function iosRun(s, line) {
+  const d = s.dev, c = d.ios;
+  if (!devices.includes(d)) { tprint('% Se ha perdido la conexión con el equipo.'); return; }
+  if (s.wait) { iosPassword(s, line); return; }
+  if (s.mode === 'idle') {
+    if (c.banner) tprint(c.banner);
+    if (c.conLogin && !c.conPass) { tprint('\nPassword required, but none set\n'); iosIdle(s); }
+    else if (c.conLogin) { tprint('\nUser Access Verification\n'); s.wait = 'login'; s.tries = 0; }
+    else s.mode = 'user';
+    return;
+  }
+  const raw = line.trim();
+  if (!raw) return;
+  if (raw.endsWith('?')) { iosHelp(s, raw); return; }
+  const t = raw.split(/\s+/);
+  try {
+    if (s.mode === 'user' || s.mode === 'priv') await iosExec(s, t, false);
+    else if (t[0].toLowerCase() === 'do') {
+      if (t.length === 1) throw new CliError('incomplete');
+      try { await iosExec(s, t.slice(1), true); } catch (e) { if (e instanceof CliError) e.i++; throw e; }
+    } else iosConfig(s, t, raw);
+  } catch (e) {
+    if (!(e instanceof CliError)) throw e;
+    if (e.kind === 'incomplete') tprint('% Incomplete command.\n');
+    else if (e.kind === 'amb') tprint(`% Ambiguous command: "${raw}"\n`);
+    else if (e.kind === 'unknown') tprint(`Translating "${t[0]}"...domain server (255.255.255.255)\n% Unknown command or computer name, or unable to find computer address\n`);
+    else tprint(' '.repeat(s.prompt().length + tokPos(raw, e.i)) + '^\n' + "% Invalid input detected at '^' marker.\n");
+  }
+  d.updateLabel();
+  if (selected === d) renderProps();
+  $('#termTitle').textContent = s.host ? `Terminal de ${s.host.name} → ${d.name} (cable de consola)` : `CLI — ${d.name}`;
+}
+function iosPassword(s, line) {
+  const c = s.dev.ios;
+  if (s.wait === 'login') {
+    if (line === c.conPass) { s.wait = null; s.mode = 'user'; return; }
+    if (++s.tries >= 3) { tprint('% Bad passwords'); iosIdle(s); }
+    return;
+  }
+  if (line === (c.enableSecret || c.enablePass)) { s.wait = null; s.mode = 'priv'; return; }
+  if (++s.tries >= 3) { s.wait = null; tprint('% Bad secrets\n'); }
+}
+function iosHelp(s, raw) {
+  const exec = s.mode === 'user' || s.mode === 'priv';
+  const body = raw.slice(0, -1).trim().toLowerCase();
+  if (exec && /^sh(o(w)?)?\s*$/.test(body) && raw.endsWith(' ?')) {
+    tprint(['  arp                 Tabla ARP', '  interfaces          Estado de las interfaces', '  ip                  ip interface brief | ip route | ip dhcp binding',
+      '  mac                 mac address-table (switches)', '  running-config      Configuración en uso (modo #)', '  startup-config      Configuración guardada (modo #)',
+      '  version             Versión del sistema'].join('\n'));
+    return;
+  }
+  tprint(IOS_HELP[s.mode === 'range' || s.mode === 'subif' ? 'if' : s.mode].filter(([k]) => !body || k.startsWith(body)).map(([k, v]) => `  ${k.padEnd(18)}${v}`).join('\n') || '% Unrecognized command');
+}
+const sysConfigured = () => tprint('\n%SYS-5-CONFIG_I: Configured from console by console');
+function iosSave(d) {
+  d.ios.startup = runningConfig(d);
+  tprint('Building configuration...\n[OK]');
+  log(`${d.name}: configuración guardada (copy running-config startup-config)`);
+}
+
+async function iosExec(s, t, viaDo) {
+  const d = s.dev, priv = viaDo || s.mode === 'priv';
+  const opts = priv ? ['configure', 'copy', 'disable', 'enable', 'exit', 'logout', 'ping', 'show', 'traceroute', 'write']
+    : ['enable', 'exit', 'logout', 'ping', 'show', 'traceroute'];
+  const w = W(t[0], opts);
+  if (w === null) throw new CliError(viaDo ? 'invalid' : 'unknown', 0);
+  if (w === AMB) throw new CliError('amb');
+  if (viaDo && ['configure', 'disable', 'enable', 'exit', 'logout'].includes(w)) throw new CliError('invalid', 0);
+  if (w === 'enable') {
+    if (s.mode !== 'user') return;
+    if (d.ios.enableSecret || d.ios.enablePass) { s.wait = 'enable'; s.tries = 0; } else s.mode = 'priv';
+  } else if (w === 'disable') s.mode = 'user';
+  else if (w === 'exit' || w === 'logout') iosIdle(s);
+  else if (w === 'configure') {
+    if (t[1] !== undefined) need(t, 1, ['terminal']);
+    tprint('Enter configuration commands, one per line.  End with CNTL/Z.');
+    s.mode = 'config';
+  } else if (w === 'copy') {
+    need(t, 1, ['running-config']); need(t, 2, ['startup-config']);
+    tprint('Destination filename [startup-config]? ');
+    iosSave(d);
+  } else if (w === 'write') {
+    if (t[1] !== undefined) need(t, 1, ['memory']);
+    iosSave(d);
+  } else if (w === 'show') iosShow(s, t, priv);
+  else if (w === 'ping') await iosPing(s, t);
+  else await iosTrace(s, t);
+}
+
+// Estado de una interfaz como lo muestra IOS: [Status, Protocol]
+function ifStatus(d, it) {
+  if (it.svi) return d.svis[it.svi].shutdown ? ['administratively down', 'down'] : ['up', 'up'];
+  const p = it.port;
+  if (p.shutdown || it.sub?.shutdown) return ['administratively down', 'down'];
+  return p.link?.up ? ['up', 'up'] : ['down', 'down'];
+}
+// Interfaces que lista IOS: puertos, subinterfaces y Vlan N
+const iosIfaces = d => [
+  ...d.ports.filter(p => p.type === 'copper' || p.type === 'fiber').flatMap(port =>
+    [{ port, name: port.name }, ...port.subs.map(sub => ({ port, sub, name: `${port.name}.${sub.id}` }))]),
+  ...(hasSvi(d) ? Object.keys(d.svis).map(v => ({ svi: Number(v), name: `Vlan${v}` })) : [])];
+function ifName(d, short) {
+  if (short.startsWith('Vlan')) return short;
+  const [base, sub] = short.split('.');
+  const p = d.ports.find(x => x.short === base);
+  return p ? p.name + (sub ? '.' + sub : '') : short;
+}
+const vlanList = set => { const v = [...set].sort((a, b) => a - b), out = [];
+  for (let i = 0; i < v.length; i++) { let j = i; while (j + 1 < v.length && v[j + 1] === v[j] + 1) j++; out.push(j > i + 1 ? `${v[i]}-${v[j]}` : j > i ? `${v[i]},${v[j]}` : `${v[i]}`); i = j; }
+  return out.join(','); };
+// «10,20,30-35» → Set de VLAN; null si no es válida
+function parseVlans(txt) {
+  const s = new Set();
+  for (const part of txt.split(',')) {
+    const m = part.match(/^(\d+)(?:-(\d+))?$/);
+    if (!m) return null;
+    const a = Number(m[1]), b = Number(m[2] || m[1]);
+    if (a < 1 || b > 4094 || a > b) return null;
+    for (let v = a; v <= b; v++) s.add(v);
+  }
+  return s;
+}
+function fakeHash(s, len) {
+  const abc = './0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  let h = 2166136261, out = '';
+  for (let i = 0; out.length < len; i++) { h = Math.imul(h ^ s.charCodeAt(i % s.length) ^ i, 16777619) >>> 0; out += abc[h % 64]; }
+  return out;
+}
+const type7 = s => '08' + [...s].map((ch, i) => (ch.charCodeAt(0) ^ 'dsfd;kfoA,.iyewrkldJKD'.charCodeAt((i + 8) % 22)).toString(16).toUpperCase().padStart(2, '0')).join('');
+function runningConfig(d) {
+  const c = d.ios, L = ['!', 'version 15.1', 'no service timestamps log datetime msec', 'no service timestamps debug datetime msec',
+    (c.encrypt ? '' : 'no ') + 'service password-encryption', '!', `hostname ${d.name}`, '!'];
+  const pw = p => c.encrypt ? `7 ${type7(p)}` : p;
+  if (c.enableSecret) L.push(`enable secret 5 $1$mERr$${fakeHash(c.enableSecret, 22)}`);
+  if (c.enablePass) L.push(`enable password ${pw(c.enablePass)}`);
+  if (c.enableSecret || c.enablePass) L.push('!');
+  if (d.kind === 'l3switch') L.push('ip routing', '!');
+  if (d.kind !== 'switch') {
+    c.dhcp.excluded.forEach(([a, b]) => L.push(`ip dhcp excluded-address ${a}${b ? ' ' + b : ''}`));
+    if (c.dhcp.excluded.length) L.push('!');
+    c.dhcp.pools.forEach(p => {
+      L.push(`ip dhcp pool ${p.name}`);
+      if (p.net) L.push(` network ${p.net} ${p.mask}`);
+      if (p.gw) L.push(` default-router ${p.gw}`);
+      if (p.dns) L.push(` dns-server ${p.dns}`);
+      L.push('!');
+    });
+  }
+  if (hasSvi(d)) {
+    L.push('spanning-tree mode pvst');
+    if (!d.stpOn) L.push('no spanning-tree vlan 1');
+    if (d.stpPriority !== 32768) L.push(`spanning-tree vlan 1 priority ${d.stpPriority}`);
+    L.push('!');
+  }
+  iosIfaces(d).forEach(it => {
+    const o = ifConf(d, it), p = it.port;
+    L.push(`interface ${it.name}`);
+    if (o.desc) L.push(` description ${o.desc}`);
+    if (it.sub && it.sub.vlan) L.push(` encapsulation dot1Q ${it.sub.vlan}${it.sub.native ? ' native' : ''}`);
+    if (d.kind === 'l3switch' && p && !it.sub && p.routed) L.push(' no switchport');
+    if (hasSvi(d) && p && !p.routed && !p.ip) {
+      if (p.mode === 'trunk') {
+        if (d.kind === 'l3switch' && p.trunkEnc === 'dot1q') L.push(' switchport trunk encapsulation dot1q');
+        if (p.native !== 1) L.push(` switchport trunk native vlan ${p.native}`);
+        if (p.allowed) L.push(` switchport trunk allowed vlan ${vlanList(p.allowed) || 'none'}`);
+        L.push(' switchport mode trunk');
+      } else {
+        if (p.vlan !== 1) L.push(` switchport access vlan ${p.vlan}`);
+        L.push(' switchport mode access');
+      }
+    }
+    if (o.ip) L.push(` ip address ${o.ip} ${o.mask}`);
+    else if (d.kind === 'router' || it.svi || p?.routed) L.push(' no ip address');
+    if (o.helper) L.push(` ip helper-address ${o.helper}`);
+    if (d.kind === 'router' && !it.sub) L.push(' duplex auto', ' speed auto');
+    if (o.shutdown) L.push(' shutdown');
+    L.push('!');
+  });
+  if (d.kind === 'switch' && d.defaultGw) L.push(`ip default-gateway ${d.defaultGw}`, '!');
+  if (d.kind !== 'switch') {
+    L.push('ip classless');
+    d.routes.forEach(r => L.push(`ip route ${r.net} ${r.mask} ${r.via}`));
+    L.push('!');
+  }
+  if (c.banner) L.push(`banner motd ^C${c.banner}^C`, '!');
+  L.push('line con 0');
+  if (c.conPass) L.push(` password ${pw(c.conPass)}`);
+  if (c.conLogin) L.push(' login');
+  L.push('!', 'line vty 0 4');
+  if (c.vtyPass) L.push(` password ${pw(c.vtyPass)}`);
+  if (c.vtyLogin) L.push(' login');
+  L.push('!', 'end');
+  const body = L.join('\n');
+  return `Building configuration...\n\nCurrent configuration : ${body.length} bytes\n${body}`;
+}
+function iosShow(s, t, priv) {
+  const d = s.dev;
+  const w = need(t, 1, ['arp', 'interfaces', 'ip', 'mac', 'mac-address-table', 'running-config', 'spanning-tree', 'startup-config', 'version', 'vlan']);
+  if ((w === 'running-config' || w === 'startup-config') && !priv) throw new CliError('invalid', 1);
+  if ((w === 'vlan' || w === 'spanning-tree') && !hasSvi(d)) throw new CliError('invalid', 1);
+  if (w === 'interfaces' && t[2] !== undefined) {
+    need(t, 2, ['trunk']);
+    if (!hasSvi(d)) throw new CliError('invalid', 2);
+    const tr = d.ports.filter(p => isL2Port(p) && p.mode === 'trunk' && p.link?.up && !p.shutdown);
+    if (!tr.length) return;
+    const all = new Set(d.vlans.keys());
+    const col = (a, b) => tprint(a.padEnd(12) + b);
+    col('Port', 'Mode         Encapsulation  Status        Native vlan');
+    tr.forEach(p => col(p.short, `on           802.1q         trunking      ${p.native}`));
+    tprint(''); col('Port', 'Vlans allowed on trunk');
+    tr.forEach(p => col(p.short, p.allowed ? vlanList(p.allowed) || 'none' : '1-1005'));
+    tprint(''); col('Port', 'Vlans allowed and active in management domain');
+    tr.forEach(p => col(p.short, vlanList([...all].filter(v => !p.allowed || p.allowed.has(v)))));
+    tprint(''); col('Port', 'Vlans in spanning tree forwarding state and not pruned');
+    tr.forEach(p => col(p.short, p.stp?.state === 'BLK' ? 'none' : vlanList([...all].filter(v => !p.allowed || p.allowed.has(v)))));
+    return;
+  }
+  if (w === 'vlan') {
+    if (t[2] !== undefined) need(t, 2, ['brief']);
+    tprint('\nVLAN Name                             Status    Ports\n---- -------------------------------- --------- -------------------------------');
+    [...d.vlans].sort(([a], [b]) => a - b).forEach(([v, name]) => {
+      const ports = d.ports.filter(p => isL2Port(p) && p.mode !== 'trunk' && p.vlan === v).map(p => p.short);
+      const lines = [];
+      for (let i = 0; i < Math.max(1, ports.length); i += 4) lines.push(ports.slice(i, i + 4).join(', '));
+      tprint(`${String(v).padEnd(5)}${name.padEnd(33)}active    ${lines[0]}`);
+      lines.slice(1).forEach(l => tprint(' '.repeat(48) + l));
+    });
+    [[1002, 'fddi-default'], [1003, 'token-ring-default'], [1004, 'fddinet-default'], [1005, 'trnet-default']]
+      .forEach(([v, n]) => tprint(`${v} ${n.padEnd(33)}active    `));
+    return;
+  }
+  if (w === 'spanning-tree') {
+    if (!d.stpOn) { tprint('No spanning tree instance exists.'); return; }
+    if (!d.stpRoot) { tprint('No spanning tree instance exists (ningún puerto de switch conectado).'); return; }
+    const r = d.stpRoot, rp = d.stpRootPort;
+    tprint(`VLAN0001\n  Spanning tree enabled protocol ieee\n  Root ID    Priority    ${r.stpPriority + 1}\n             Address     ${r.svi.mac}`);
+    tprint(r === d ? '             This bridge is the root' : `             Cost        ${d.stpCostToRoot}\n             Port        ${portNum(rp)}(${rp.name})`);
+    tprint('             Hello Time  2 sec  Max Age 20 sec  Forward Delay 15 sec\n');
+    tprint(`  Bridge ID  Priority    ${d.stpPriority + 1}  (priority ${d.stpPriority} sys-id-ext 1)\n             Address     ${d.svi.mac}\n             Hello Time  2 sec  Max Age 20 sec  Forward Delay 15 sec\n             Aging Time  20\n`);
+    tprint('Interface        Role Sts Cost      Prio.Nbr Type\n---------------- ---- --- --------- -------- --------------------------------');
+    d.ports.filter(p => p.stp && p.link?.up && !p.shutdown).forEach(p =>
+      tprint(`${p.short.padEnd(17)}${p.stp.role} ${p.stp.state} ${String(stpCost(p)).padEnd(10)}128.${String(portNum(p)).padEnd(5)}P2p`));
+    tprint('\n(Este simulador calcula un único árbol 802.1D para todas las VLAN.)');
+    return;
+  }
+  if (w === 'running-config') tprint(runningConfig(d));
+  else if (w === 'startup-config') tprint(d.ios.startup ? d.ios.startup.replace('Building configuration...\n\nCurrent configuration', 'Using') : 'startup-config is not present');
+  else if (w === 'version') {
+    const model = { router: 'C2900', switch: 'C2960', l3switch: 'C3560' }[d.kind];
+    tprint(`Cisco IOS Software, ${model} Software (${model}-UNIVERSALK9-M), Version 15.1(4)M4, RELEASE SOFTWARE (fc2)\n(Simulador de Redes SMX)\n\n${d.name} uptime is ${Math.max(1, Math.round(performance.now() / 60000))} minutes\nSystem image file is "flash:${model.toLowerCase()}-universalk9-mz.SPA.151-4.M4.bin"`);
+  } else if (w === 'mac' || w === 'mac-address-table') {
+    if (w === 'mac') need(t, 2, ['address-table']);
+    if (!hasL2(d)) throw new CliError('invalid', 1);
+    tprint('          Mac Address Table\n-------------------------------------------\n\nVlan    Mac Address       Type        Ports\n----    -----------       --------    -----\n');
+    [...d.macTable].sort(([a], [b]) => parseInt(a) - parseInt(b)).forEach(([key, p]) => {
+      const [vlan, mac] = key.split('|');
+      tprint(`${vlan.padStart(4)}    ${mac}    DYNAMIC     ${p.short}`);
+    });
+  } else if (w === 'arp') {
+    tprint('Protocol  Address          Age (min)  Hardware Addr   Type   Interface');
+    l3Ifaces(d).forEach(i => tprint(`Internet  ${i.ip.padEnd(17)}-          ${i.mac}  ARPA   ${i.name}`));
+    d.arp.forEach((e, ip) => tprint(`Internet  ${ip.padEnd(17)}0          ${e.mac}  ARPA   ${ifName(d, e.iface)}`));
+  } else if (w === 'interfaces') {
+    iosIfaces(d).forEach(it => {
+      const [st, pr] = ifStatus(d, it), o = ifConf(d, it), mac = it.svi ? o.mac : it.port.mac;
+      tprint(`${it.name} is ${st}, line protocol is ${pr}${st === 'up' && pr === 'up' && !it.svi ? ' (connected)' : ''}`);
+      tprint(`  Hardware is ${it.svi ? 'CPU Interface' : it.port.type === 'fiber' ? 'Gigabit Ethernet SFP' : 'Lance'}, address is ${mac} (bia ${mac})`);
+      if (o.desc) tprint(`  Description: ${o.desc}`);
+      if (o.ip) tprint(`  Internet address is ${o.ip}/${maskBits(o.mask)}`);
+      tprint(`  MTU 1500 bytes, BW ${it.port?.name.startsWith('Fast') ? '100000' : '1000000'} Kbit, DLY 10 usec,\n`);
+    });
+  } else {
+    const x = need(t, 2, ['dhcp', 'interface', 'route']);
+    if (x === 'interface') {
+      if (t[3] !== undefined) need(t, 3, ['brief']);
+      const row = (...v) => v[0].padEnd(23) + v[1].padEnd(16) + v[2].padEnd(4) + v[3].padEnd(7) + v[4].padEnd(22) + v[5];
+      tprint(row('Interface', 'IP-Address', 'OK?', 'Method', 'Status', 'Protocol'));
+      iosIfaces(d).forEach(it => {
+        const o = ifConf(d, it), [st, pr] = ifStatus(d, it);
+        tprint(row(it.name, o.ip || 'unassigned', 'YES', o.ip ? 'manual' : 'unset', st, pr));
+      });
+    } else if (x === 'route') {
+      if (d.kind === 'switch') throw new CliError('invalid', 2);
+      tprint('Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP\n       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF inter area\n       N1 - OSPF NSSA external type 1, N2 - OSPF NSSA external type 2\n       E1 - OSPF external type 1, E2 - OSPF external type 2, E - EGP\n       i - IS-IS, L1 - IS-IS level-1, L2 - IS-IS level-2, ia - IS-IS inter area\n       * - candidate default, U - per-user static route, o - ODR\n       P - periodic downloaded static route\n');
+      const def = d.routes.find(r => r.mask === '0.0.0.0');
+      tprint(def ? `Gateway of last resort is ${def.via} to network 0.0.0.0\n` : 'Gateway of last resort is not set\n');
+      l3Ifaces(d).filter(i => ifStatus(d, i)[1] === 'up').forEach(i => {
+        tprint(`C    ${intToIp(netOf(i.ip, i.mask))}/${maskBits(i.mask)} is directly connected, ${i.name}`);
+        tprint(`L    ${i.ip}/32 is directly connected, ${i.name}`);
+      });
+      d.routes.forEach(r => tprint(`S${r.mask === '0.0.0.0' ? '*' : ' '}   ${r.net}/${maskBits(r.mask)} [1/0] via ${r.via}`));
+    } else {
+      if (d.kind === 'switch') throw new CliError('invalid', 2);
+      const y = need(t, 3, ['binding', 'pool']);
+      if (y === 'binding') {
+        tprint('IP address       Client-ID/              Lease expiration        Type\n                 Hardware address');
+        d.ios.dhcp.leases.forEach((ip, mac) => tprint(`${ip.padEnd(17)}${mac.padEnd(24)}--                      Automatic`));
+      } else d.ios.dhcp.pools.forEach(p => tprint(`\nPool ${p.name} :\n Network            : ${p.net || '-'} ${p.mask}\n Default router     : ${p.gw || '-'}\n DNS server         : ${p.dns || '-'}`));
+    }
+  }
+}
+async function iosPing(s, t) {
+  const d = s.dev, target = t[1];
+  if (!target) throw new CliError('incomplete');
+  if (!IPRE.test(target) || !l3Ifaces(d).some(i => ifaceOn(d, i))) { tprint('% Unrecognized host or address, or protocol not running.\n'); return; }
+  tprint(`Type escape sequence to abort.\nSending 5, 100-byte ICMP Echos to ${target}, timeout is 2 seconds:`);
+  simWarn();
+  let ok = 0;
+  for (let k = 0; k < 5 && !termAbort; k++) {
+    const res = l3Ifaces(d).some(i => i.ip === target) ? { type: 0 } : await pingIp(d, target);
+    if (!res.timeout && res.type === 0) ok++;
+    twrite(res.timeout ? '.' : res.type === 0 ? '!' : res.type === 3 ? 'U' : '.');
+  }
+  tprint(`\nSuccess rate is ${ok * 20} percent (${ok}/5)${ok ? ', round-trip min/avg/max = 0/0/1 ms' : ''}\n`);
+}
+async function iosTrace(s, t) {
+  const d = s.dev, target = t[1];
+  if (!target) throw new CliError('incomplete');
+  if (!IPRE.test(target) || !l3Ifaces(d).some(i => ifaceOn(d, i))) { tprint('% Unrecognized host or address, or protocol not running.\n'); return; }
+  tprint(`Type escape sequence to abort.\nTracing the route to ${target}\n`);
+  simWarn();
+  let lost = 0;
+  for (let ttl = 1; ttl <= 30 && !termAbort; ttl++) {
+    const res = await pingIp(d, target, ttl), n = String(ttl).padStart(3);
+    if (res.timeout) {
+      tprint(`${n}   *    *    *`);
+      if (++lost === 3) break;
+      continue;
+    }
+    lost = 0;
+    tprint(`${n}   ${res.from.padEnd(16)}0 msec    0 msec    0 msec${res.type === 3 ? ' !H' : ''}`);
+    if (res.type !== 11) break;
+  }
+  tprint('');
+}
+
+function findPort(d, type, num) {
+  return d.ports.find(p => {
+    if (p.type !== 'copper' && p.type !== 'fiber') return false;
+    const pm = p.name.toLowerCase().match(/^([a-z]+)(.*)$/);
+    return pm[1].startsWith(type) && pm[2] === num;
+  });
+}
+function iosEnterIf(s, toks, i) {
+  if (!toks.length) throw new CliError('incomplete');
+  const d = s.dev;
+  // interface range fa0/1 - 4 | fa0/1-4
+  if (toks[0].length > 1 && 'range'.startsWith(toks[0].toLowerCase())) {
+    const m = toks.slice(1).join('').toLowerCase().match(/^([a-z]+)(\d+\/)(\d+)-(\d+)$/);
+    if (!m) throw new CliError(toks.length > 1 ? 'invalid' : 'incomplete', i + 1);
+    const ports = [];
+    for (let n = Number(m[3]); n <= Number(m[4]); n++) {
+      const p = findPort(d, m[1], m[2] + n);
+      if (!p) throw new CliError('invalid', i + 1);
+      ports.push({ port: p, name: p.name });
+    }
+    s.ifs = ports;
+    s.mode = 'range';
+    return;
+  }
+  const txt = toks.join('').toLowerCase(), m = txt.match(/^([a-z-]+)(\d+(?:\/\d+)*)(?:\.(\d+))?$/);
+  if (!m) throw new CliError('invalid', i);
+  if (hasSvi(d) && 'vlan'.startsWith(m[1])) {
+    const v = Number(m[2]);
+    if (m[3] || v < 1 || v > 4094) throw new CliError('invalid', i);
+    if (!d.svis[v]) d.svis[v] = { ip: '', mask: '255.255.255.0', mac: randMac(), shutdown: false, helper: '', desc: '' };
+    s.ifs = [{ svi: v, name: `Vlan${v}` }];
+    s.mode = 'if';
+    return;
+  }
+  const port = findPort(d, m[1], m[2]);
+  if (!port) throw new CliError('invalid', i);
+  if (m[3]) {
+    if (d.kind !== 'router') throw new CliError('invalid', i);
+    let sub = port.subs.find(x => x.id === m[3]);
+    if (!sub) port.subs.push(sub = { id: m[3], vlan: 0, native: false, ip: '', mask: '255.255.255.0', desc: '', helper: '', shutdown: false });
+    s.ifs = [{ port, sub, name: `${port.name}.${sub.id}` }];
+    s.mode = 'subif';
+    return;
+  }
+  s.ifs = [{ port, name: port.name }];
+  s.mode = 'if';
+}
+function iosSetShutdown(s, off) {
+  const d = s.dev;
+  s.ifs.forEach(it => {
+    const o = ifConf(d, it);
+    if (o.shutdown === off) return;
+    o.shutdown = off;
+    rebuildAll();
+    if (off) {
+      tprint(`\n%LINK-5-CHANGED: Interface ${it.name}, changed state to administratively down`);
+      if (!it.svi && it.port.link) tprint(`\n%LINEPROTO-5-UPDOWN: Line protocol on Interface ${it.name}, changed state to down`);
+    } else {
+      const up = it.svi || (it.port.link?.up && !it.port.shutdown);
+      tprint(`\n%LINK-5-CHANGED: Interface ${it.name}, changed state to ${up ? 'up' : 'down'}`);
+      if (up) tprint(`\n%LINEPROTO-5-UPDOWN: Line protocol on Interface ${it.name}, changed state to up`);
+    }
+    log(`${d.name}: ${it.name} ${off ? 'apagada (shutdown)' : 'encendida (no shutdown)'}`, off ? 'warn' : 'info');
+  });
+  d.arp.clear();
+}
+function iosSetIp(s, t) {
+  const d = s.dev, ip = needIp(t, 2), mask = needMask(t, 3), it = s.ifs[0];
+  if (!it.svi && d.kind === 'switch') throw new CliError('invalid', 0);
+  if (!it.svi && d.kind === 'l3switch' && !it.port.routed) { tprint('% IP addresses may not be configured on L2 links.\n'); return; }
+  if (it.sub && !it.sub.vlan) { tprint('% Configuring IP routing on a LAN subinterface is only allowed if that\nsubinterface is already configured as part of an IEEE 802.10, IEEE 802.1Q,\nor ISL vLAN.\n'); return; }
+  const host = ipToInt(ip) & ~ipToInt(mask);
+  if (maskBits(mask) < 31 && (host === 0 || (host >>> 0) === (~ipToInt(mask) >>> 0))) { tprint(`% Bad mask /${maskBits(mask)} for address ${ip}\n`); return; }
+  const clash = l3Ifaces(d).find(i => i.name !== it.name && (netOf(ip, i.mask) === netOf(i.ip, i.mask) || netOf(i.ip, mask) === netOf(ip, mask)));
+  if (clash) { tprint(`% ${intToIp(netOf(ip, mask))} overlaps with ${clash.name}\n`); return; }
+  const other = devices.find(x => x !== d && ifacesOf(x).some(i => i.ip === ip));
+  if (other) { tprint(`% La dirección ${ip} ya la usa ${other.name}.\n`); return; }
+  Object.assign(ifConf(d, it), { ip, mask });
+  d.arp.clear();
+  rebuildAll();
+  log(`${d.name}: ${it.name} ip address ${ip} ${mask}`);
+}
+const vlanName = v => `VLAN${String(v).padStart(4, '0')}`;
+function needVlan(t, i) {
+  if (t[i] === undefined) throw new CliError('incomplete');
+  const v = Number(t[i]);
+  if (!Number.isInteger(v) || v < 1 || v > 4094 || (v >= 1002 && v <= 1005)) throw new CliError('invalid', i);
+  return v;
+}
+// switchport … (con neg = true, la forma «no switchport …»); se aplica a todos los puertos de un «interface range»
+function iosSwitchport(s, t, neg) {
+  const d = s.dev;
+  if (d.kind === 'router' || s.ifs.some(i => i.svi || i.sub)) throw new CliError('invalid', 0);
+  const ports = s.ifs.map(i => i.port);
+  if (t[1] === undefined) {
+    if (d.kind !== 'l3switch') throw new CliError(neg ? 'invalid' : 'incomplete', 0);
+    ports.forEach(p => { p.routed = neg; if (!neg) p.ip = ''; });
+    d.arp.clear();
+  } else {
+    const x = need(t, 1, ['access', 'mode', 'trunk']);
+    if (ports.some(p => p.routed)) { tprint('% El puerto es enrutado (no switchport): vuelve a hacerlo de switch con «switchport».\n'); return; }
+    if (x === 'mode') {
+      const m = neg ? 'access' : need(t, 2, ['access', 'dynamic', 'trunk']);
+      if (m === 'trunk' && d.kind === 'l3switch' && ports.some(p => p.trunkEnc !== 'dot1q')) {
+        tprint('Command rejected: An interface whose trunk encapsulation is "Auto" can not be configured to "trunk" mode.\n');
+        return;
+      }
+      ports.forEach(p => p.mode = m === 'trunk' ? 'trunk' : 'access');
+    } else if (x === 'access') {
+      need(t, 2, ['vlan']);
+      const v = neg ? 1 : needVlan(t, 3);
+      if (!d.vlans.has(v)) { tprint(`% Access VLAN does not exist. Creating vlan ${v}`); d.vlans.set(v, vlanName(v)); }
+      ports.forEach(p => p.vlan = v);
+    } else {
+      const y = need(t, 2, ['allowed', 'encapsulation', 'native']);
+      if (y === 'encapsulation') {
+        if (d.kind !== 'l3switch') throw new CliError('invalid', 2);
+        if (!neg) need(t, 3, ['dot1q']);
+        ports.forEach(p => { p.trunkEnc = neg ? 'auto' : 'dot1q'; if (neg && p.mode === 'trunk') p.mode = 'access'; });
+      } else if (y === 'native') {
+        need(t, 3, ['vlan']);
+        const v = neg ? 1 : needVlan(t, 4);
+        ports.forEach(p => p.native = v);
+      } else {
+        need(t, 3, ['vlan']);
+        if (neg) ports.forEach(p => p.allowed = null);
+        else {
+          if (t[4] === undefined) throw new CliError('incomplete');
+          const a = W(t[4], ['add', 'all', 'except', 'none', 'remove']);
+          const full = () => new Set(Array.from({ length: 4094 }, (_, i) => i + 1));
+          const list = i => { if (t[i] === undefined) throw new CliError('incomplete'); const v = parseVlans(t[i]); if (!v) throw new CliError('invalid', i); return v; };
+          ports.forEach(p => {
+            if (a === 'all') p.allowed = null;
+            else if (a === 'none') p.allowed = new Set();
+            else if (a === 'add') { if (p.allowed) list(5).forEach(v => p.allowed.add(v)); }
+            else if (a === 'remove') { const base = p.allowed || full(); list(5).forEach(v => base.delete(v)); p.allowed = base; }
+            else if (a === 'except') { const base = full(); list(5).forEach(v => base.delete(v)); p.allowed = base; }
+            else { if (a === AMB) throw new CliError('amb'); p.allowed = list(4); }
+          });
+        }
+      }
+    }
+  }
+  d.macTable.clear();
+  rebuildAll();
+}
+function iosRename(d, name) {
+  if (!/^[A-Za-z][A-Za-z0-9-]{0,62}$/.test(name)) throw new CliError('invalid', 1);
+  if (devices.some(x => x !== d && x.name === name)) { tprint(`% Ya hay otro equipo llamado ${name}.\n`); return; }
+  log(`${d.name} → ${name} (hostname)`);
+  d.name = name;
+}
+
+function iosConfig(s, t, raw) {
+  const d = s.dev, c = d.ios, mode = s.mode;
+  const leave = to => { if (to === 'priv') sysConfigured(); s.mode = to; };
+  if (mode === 'config') {
+    const w = need(t, 0, ['banner', 'enable', 'end', 'exit', 'hostname', 'interface', 'ip', 'line', 'no', 'service', ...(hasSvi(d) ? ['spanning-tree', 'vlan'] : [])]);
+    if (w === 'end' || w === 'exit') leave('priv');
+    else if (w === 'vlan') {
+      const v = needVlan(t, 1);
+      if (!d.vlans.has(v)) d.vlans.set(v, vlanName(v));
+      s.vlanId = v;
+      s.mode = 'vlan';
+    } else if (w === 'spanning-tree') {
+      const x = need(t, 1, ['mode', 'vlan']);
+      if (x === 'mode') { need(t, 2, ['pvst', 'rapid-pvst']); return; }
+      needVlan(t, 2);
+      if (t[3] === undefined) { d.stpOn = true; rebuildAll(); return; }
+      const y = need(t, 3, ['priority', 'root']);
+      if (y === 'root') d.stpPriority = need(t, 4, ['primary', 'secondary']) === 'primary' ? 24576 : 28672;
+      else {
+        const pr = Number(t[4]);
+        if (t[4] === undefined) throw new CliError('incomplete');
+        if (!Number.isInteger(pr) || pr < 0 || pr > 61440 || pr % 4096) { tprint('% Bridge Priority must be in increments of 4096.\n% Allowed values are:\n  0     4096  8192  12288 16384 20480 24576 28672\n  32768 36864 40960 45056 49152 53248 57344 61440\n'); return; }
+        d.stpPriority = pr;
+      }
+      rebuildAll();
+      log(`${d.name}: prioridad STP ${d.stpPriority}${d.stpRoot === d ? ' — ahora es el puente raíz' : ''}`);
+    }
+    else if (w === 'hostname') { if (!t[1]) throw new CliError('incomplete'); iosRename(d, t[1]); }
+    else if (w === 'interface') iosEnterIf(s, t.slice(1), 1);
+    else if (w === 'service') { need(t, 1, ['password-encryption']); c.encrypt = true; }
+    else if (w === 'enable') {
+      const x = need(t, 1, ['password', 'secret']);
+      const v = t[2] === '0' ? t[3] : t[2];
+      if (!v) throw new CliError('incomplete');
+      if (x === 'secret') c.enableSecret = v; else c.enablePass = v;
+    } else if (w === 'line') {
+      const x = need(t, 1, ['console', 'vty']);
+      if (t[2] === undefined) throw new CliError('incomplete');
+      s.line = x;
+      s.mode = 'line';
+    } else if (w === 'banner') {
+      need(t, 1, ['motd']);
+      const rest = raw.slice(tokPos(raw, 2)), delim = rest[0], end = rest.indexOf(delim, 1);
+      if (!rest || end < 0) { tprint('% Escribe el banner en una sola línea: banner motd #texto#\n'); return; }
+      c.banner = rest.slice(1, end);
+    } else if (w === 'ip') {
+      const x = need(t, 1, d.kind === 'switch' ? ['default-gateway'] : ['default-gateway', 'dhcp', 'route', 'routing']);
+      if (x === 'default-gateway') { const gw = needIp(t, 2); if (d.kind === 'switch') d.defaultGw = gw; }
+      else if (x === 'routing') { /* los routers y el SW capa 3 ya enrutan */ }
+      else if (x === 'route') {
+        const net = needIp(t, 2), mask = needMask(t, 3), via = needIp(t, 4);
+        if (netOf(net, mask) !== ipToInt(net)) { tprint('%Inconsistent address and mask\n'); return; }
+        if (!d.routes.some(r => r.net === net && r.mask === mask && r.via === via)) d.routes.push({ net, mask, via });
+        log(`${d.name}: ip route ${net} ${mask} ${via}`);
+      } else {
+        const y = need(t, 2, ['excluded-address', 'pool']);
+        if (y === 'pool') {
+          if (!t[3]) throw new CliError('incomplete');
+          let p = c.dhcp.pools.find(x => x.name === t[3]);
+          if (!p) c.dhcp.pools.push(p = { name: t[3], net: '', mask: '255.255.255.0', gw: '', dns: '' });
+          s.pool = p;
+          s.mode = 'dhcp';
+        } else {
+          const a = needIp(t, 3), b = t[4] !== undefined ? needIp(t, 4) : '';
+          c.dhcp.excluded.push([a, b]);
+        }
+      }
+    } else {
+      try { iosNo(s, t.slice(1)); } catch (e) { if (e instanceof CliError) e.i++; throw e; }
+    }
+    return;
+  }
+  if (mode === 'if' || mode === 'range' || mode === 'subif') {
+    const it = s.ifs[0], o = ifConf(d, it), range = mode === 'range';
+    const opts = ['description', 'duplex', 'encapsulation', 'end', 'exit', 'interface', 'ip', 'no', 'shutdown', 'spanning-tree', 'speed', 'switchport'];
+    const w = need(t, 0, opts);
+    if (range && (w === 'ip' || w === 'encapsulation')) throw new CliError('invalid', 0);
+    if (w === 'end') leave('priv');
+    else if (w === 'exit') s.mode = 'config';
+    else if (w === 'interface') iosEnterIf(s, t.slice(1), 1);
+    else if (w === 'shutdown') iosSetShutdown(s, true);
+    else if (w === 'description') { if (!t[1]) throw new CliError('incomplete'); s.ifs.forEach(x => ifConf(d, x).desc = raw.slice(tokPos(raw, 1))); }
+    else if (w === 'duplex' || w === 'speed' || w === 'spanning-tree') { if (!t[1]) throw new CliError('incomplete'); }
+    else if (w === 'encapsulation') {
+      if (!it.sub) throw new CliError('invalid', 0);
+      need(t, 1, ['dot1q']);
+      const v = Number(t[2]);
+      if (!t[2]) throw new CliError('incomplete');
+      if (!Number.isInteger(v) || v < 1 || v > 4094) throw new CliError('invalid', 2);
+      it.sub.vlan = v;
+      it.sub.native = t[3] !== undefined && need(t, 3, ['native']) === 'native';
+      rebuildAll();
+    } else if (w === 'switchport') iosSwitchport(s, t, false);
+    else if (w === 'ip') {
+      const x = need(t, 1, ['address', 'helper-address']);
+      if (x === 'address') iosSetIp(s, t);
+      else { if (d.kind === 'switch') throw new CliError('invalid', 1); o.helper = needIp(t, 2); }
+    } else {
+      const x = need(t, 1, ['description', 'ip', 'shutdown', 'switchport']);
+      if (x === 'shutdown') iosSetShutdown(s, false);
+      else if (x === 'description') s.ifs.forEach(y => ifConf(d, y).desc = '');
+      else if (x === 'switchport') iosSwitchport(s, t.slice(1), true);
+      else {
+        if (range) throw new CliError('invalid', 1);
+        const y = need(t, 2, ['address', 'helper-address']);
+        if (y === 'address') { o.ip = ''; d.arp.clear(); rebuildAll(); } else o.helper = '';
+      }
+    }
+    return;
+  }
+  if (mode === 'vlan') {
+    const w = need(t, 0, ['end', 'exit', 'name', 'no']);
+    if (w === 'end') leave('priv');
+    else if (w === 'exit') s.mode = 'config';
+    else if (w === 'name') { if (!t[1]) throw new CliError('incomplete'); d.vlans.set(s.vlanId, t[1].slice(0, 32)); }
+    else { need(t, 1, ['name']); d.vlans.set(s.vlanId, `VLAN${String(s.vlanId).padStart(4, '0')}`); }
+    return;
+  }
+  if (mode === 'line') {
+    const w = need(t, 0, ['end', 'exec-timeout', 'exit', 'logging', 'login', 'no', 'password']);
+    const vty = s.line === 'vty';
+    if (w === 'end') leave('priv');
+    else if (w === 'exit') s.mode = 'config';
+    else if (w === 'password') { const v = t[1] === '0' ? t[2] : t[1]; if (!v) throw new CliError('incomplete'); c[vty ? 'vtyPass' : 'conPass'] = v; }
+    else if (w === 'login') c[vty ? 'vtyLogin' : 'conLogin'] = true;
+    else if (w === 'no') { const x = need(t, 1, ['login', 'password']); if (x === 'login') c[vty ? 'vtyLogin' : 'conLogin'] = false; else c[vty ? 'vtyPass' : 'conPass'] = ''; }
+    return;
+  }
+  // (dhcp-config)
+  const p = s.pool;
+  const w = need(t, 0, ['default-router', 'dns-server', 'domain-name', 'end', 'exit', 'network', 'no']);
+  if (w === 'end') leave('priv');
+  else if (w === 'exit') s.mode = 'config';
+  else if (w === 'network') { const net = needIp(t, 1), mask = needMask(t, 2); Object.assign(p, { net: intToIp(netOf(net, mask)), mask }); }
+  else if (w === 'default-router') p.gw = needIp(t, 1);
+  else if (w === 'dns-server') p.dns = needIp(t, 1);
+  else if (w === 'domain-name') { if (!t[1]) throw new CliError('incomplete'); }
+  else { const x = need(t, 1, ['default-router', 'dns-server', 'network']); if (x === 'network') p.net = ''; else p[x === 'default-router' ? 'gw' : 'dns'] = ''; }
+}
+function iosNo(s, t) {
+  const d = s.dev, c = d.ios;
+  if (!t.length) throw new CliError('incomplete');
+  const w = W(t[0], ['banner', 'enable', 'hostname', 'ip', 'service', ...(hasSvi(d) ? ['spanning-tree', 'vlan'] : [])]);
+  if (w === null) throw new CliError('invalid', 0);
+  if (w === AMB) throw new CliError('amb');
+  if (w === 'vlan') {
+    const v = needVlan(t, 1);
+    if (v === 1) { tprint('%Default VLAN 1 may not be deleted.\n'); return; }
+    d.vlans.delete(v);
+    rebuildAll();
+  } else if (w === 'spanning-tree') {
+    need(t, 1, ['vlan']); needVlan(t, 2);
+    if (t[3] !== undefined) { need(t, 3, ['priority']); d.stpPriority = 32768; } else d.stpOn = false;
+    rebuildAll();
+    log(`${d.name}: ${d.stpOn ? 'prioridad STP por defecto' : 'STP desactivado (no spanning-tree): si hay bucles, las difusiones no se detienen'}`, d.stpOn ? 'info' : 'warn');
+  } else if (w === 'banner') c.banner = '';
+  else if (w === 'service') c.encrypt = false;
+  else if (w === 'hostname') iosRename(d, d.def.prefix);
+  else if (w === 'enable') { const x = W(t[1] || '', ['password', 'secret']); if (!x || x === AMB) throw new CliError('incomplete'); if (x === 'secret') c.enableSecret = ''; else c.enablePass = ''; }
+  else {
+    const x = W(t[1] || '', d.kind === 'switch' ? ['default-gateway'] : ['default-gateway', 'dhcp', 'route', 'routing']);
+    if (!t[1]) throw new CliError('incomplete');
+    if (x === null) throw new CliError('invalid', 1);
+    if (x === AMB) throw new CliError('amb');
+    if (x === 'default-gateway') d.defaultGw = '';
+    else if (x === 'route') {
+      const net = needIp(t, 2), mask = needMask(t, 3), via = t[4];
+      const before = d.routes.length;
+      d.routes = d.routes.filter(r => !(r.net === net && r.mask === mask && (!via || r.via === via)));
+      if (d.routes.length === before) tprint('%No matching route to delete\n');
+    } else if (x === 'dhcp') {
+      const y = W(t[2] || '', ['excluded-address', 'pool']);
+      if (!y || y === AMB) throw new CliError('incomplete');
+      if (y === 'pool') c.dhcp.pools = c.dhcp.pools.filter(p => p.name !== t[3]);
+      else c.dhcp.excluded = c.dhcp.excluded.filter(([a, b]) => !(a === t[3] && (b || '') === (t[4] || '')));
+    }
+  }
+}
 
 /* ---------- Topología lógica ---------- */
 // Aristas entre puertos de equipos activos: cada cable, o el canal completo a través de patch panels
@@ -1235,6 +2471,67 @@ function edges() {
   return E;
 }
 const flipSegs = segs => segs.slice().reverse().map(s => ({ link: s.link, from: s.link.other(s.from) }));
+
+/* ---------- STP (802.1D, una instancia para todas las VLAN) ---------- */
+// Coste por velocidad del puerto (802.1D): FastEthernet 19, GigabitEthernet 4
+const stpCost = p => p.name.startsWith('Fast') ? 19 : 4;
+const portNum = p => p.device.ports.indexOf(p) + 1;
+const bridgeId = d => [d.stpPriority + 1, d.svi.mac];   // prioridad + sys-id-ext (VLAN 1) y MAC
+function cmpKey(a, b) {
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] < b[i] ? -1 : 1;
+  return 0;
+}
+// Elige el puente raíz de cada grupo de switches unidos y los papeles de sus puertos: raíz, designado o alternativo (bloqueado)
+function computeStp() {
+  const sw = devices.filter(d => hasSvi(d) && d.stpOn);
+  const before = devices.flatMap(d => d.ports.map(p => p.stp?.state || '')).join();
+  devices.forEach(d => { d.ports.forEach(p => p.stp = null); d.stpRoot = null; d.stpRootPort = null; d.stpCostToRoot = 0; });
+  const E = edges().filter(e => e.up && sw.includes(e.a.device) && sw.includes(e.b.device) && isL2Port(e.a) && isL2Port(e.b));
+  const adj = new Map(sw.map(d => [d, []]));
+  E.forEach(e => { adj.get(e.a.device).push({ me: e.a, nb: e.b }); adj.get(e.b.device).push({ me: e.b, nb: e.a }); });
+  const seen = new Set();
+  for (const first of sw) {
+    if (seen.has(first)) continue;
+    const comp = [], stack = [first];
+    seen.add(first);
+    while (stack.length) {
+      const x = stack.pop();
+      comp.push(x);
+      adj.get(x).forEach(({ nb }) => { if (!seen.has(nb.device)) { seen.add(nb.device); stack.push(nb.device); } });
+    }
+    const root = comp.reduce((a, b) => cmpKey(bridgeId(b), bridgeId(a)) < 0 ? b : a);
+    const dist = new Map(comp.map(d => [d, Infinity]));
+    dist.set(root, 0);
+    const todo = new Set(comp);
+    while (todo.size) {
+      let u = null;
+      todo.forEach(d => { if (!u || dist.get(d) < dist.get(u)) u = d; });
+      todo.delete(u);
+      adj.get(u).forEach(({ nb }) => { const c = dist.get(u) + stpCost(nb); if (c < dist.get(nb.device)) dist.set(nb.device, c); });
+    }
+    comp.forEach(d => {
+      d.stpRoot = root;
+      d.stpCostToRoot = dist.get(d);
+      if (d === root) return;
+      let best = null, bk = null;
+      adj.get(d).forEach(({ me, nb }) => {
+        const key = [dist.get(nb.device) + stpCost(me), ...bridgeId(nb.device), portNum(nb), portNum(me)];
+        if (!best || cmpKey(key, bk) < 0) { best = me; bk = key; }
+      });
+      d.stpRootPort = best;
+    });
+    // en cada enlace entre switches, el extremo con mejor camino a la raíz es el designado; el otro, si no es puerto raíz, se bloquea
+    E.filter(e => comp.includes(e.a.device)).forEach(e => {
+      const k = p => [dist.get(p.device), ...bridgeId(p.device), portNum(p)];
+      const [des, other] = cmpKey(k(e.a), k(e.b)) <= 0 ? [e.a, e.b] : [e.b, e.a];
+      des.stp = { role: 'Desg', state: 'FWD' };
+      other.stp = other.device.stpRootPort === other ? { role: 'Root', state: 'FWD' } : { role: 'Altn', state: 'BLK' };
+    });
+  }
+  sw.forEach(d => d.ports.forEach(p => { if (isL2Port(p) && !p.stp) p.stp = { role: 'Desg', state: 'FWD' }; }));
+  // un cambio de topología vacía las tablas MAC, como hace STP
+  if (devices.flatMap(d => d.ports.map(p => p.stp?.state || '')).join() !== before) devices.forEach(d => { if (hasL2(d)) d.macTable.clear(); });
+}
 function neighbors(port) {
   const r = [];
   for (const e of edges()) {
@@ -1277,19 +2574,30 @@ function animateAlong(points, color, speed = 8) {
 
 /* ---------- Motor de simulación: tramas Ethernet, ARP e ICMP ---------- */
 const sim = { mode: 'realtime', paused: true, step: false, wake: null, running: false, gen: 0,
-  pending: [], time: 0, events: [], pings: new Map(), seq: 0, speed: 6, filters: { ARP: true, ICMP: true } };
-const pduType = f => f.type === 'ARP' ? 'ARP' : 'ICMP';
-const pduColor = f => f.type === 'ARP' ? 0xf2b705 : f.ip.icmp.type === 8 ? 0x1f7dff : 0x22c55e;
+  pending: [], time: 0, events: [], pings: new Map(), ops: new Map(), seq: 0, speed: 6,
+  filters: { ARP: true, ICMP: true, DHCP: true, DNS: true, TCP: true, HTTP: true } };
+function pduType(f) {
+  if (f.type === 'ARP') return 'ARP';
+  const p = f.ip;
+  if (p.proto === 'UDP') return p.dhcp ? 'DHCP' : 'DNS';
+  if (p.proto === 'TCP') return p.http ? 'HTTP' : 'TCP';
+  return 'ICMP';
+}
+const PDU_COLORS = { ARP: 0xf2b705, DHCP: 0x8b5cf6, DNS: 0xe0459b, TCP: 0x64748b, HTTP: 0xe68a00 };
+const pduColor = f => { const t = pduType(f); return t !== 'ICMP' ? PDU_COLORS[t] : { 8: 0x1f7dff, 0: 0x22c55e }[f.ip.icmp.type] ?? 0xd83a3a; };
+const BCAST_IP = '255.255.255.255';
 const failOp = (x, reason) => { const op = (x.ip || x).op; if (op && !op.reason) op.reason = reason; };
 
 // Pone la trama en el cable (o cables) del puerto; except evita devolverla al emisor por la radio del AP
-function transmit(port, frame, except = null) {
+// tag: VLAN de la etiqueta 802.1Q que lleva la trama en ese cable (null = sin etiquetar)
+function transmit(port, frame, except = null, tag = null) {
   const nb = neighbors(port).filter(n => n.to !== except);
   if (!nb.length) { failOp(frame, `${port.device.name} ${port.short} no tiene ningún enlace activo`); return; }
-  nb.forEach(n => sim.pending.push({ from: port, to: n.to, segs: n.segs, frame }));
+  nb.forEach(n => sim.pending.push({ from: port, to: n.to, segs: n.segs, frame, tag }));
 }
 function sendFrame(d, iface, frame) {
-  if (iface.svi) l2Forward(d, null, frame, null);
+  if (iface.svi) l2Forward(d, null, frame, null, iface.svi);
+  else if (iface.sub) transmit(iface.port, frame, null, iface.sub.native ? null : iface.sub.vlan);
   else transmit(iface.port, frame);
 }
 function ipSend(d, pkt) {
@@ -1308,34 +2616,55 @@ function ipSend(d, pkt) {
 function arrive(tx) {
   const p = tx.to, d = p.device, f = tx.frame;
   if (!devices.includes(d)) return 'El equipo ya no existe.';
-  if (hasL2(d) && !p.ip) return l2Receive(d, p, f, tx.from);
-  const iface = d.def.host ? hostIface(d) : l3Ifaces(d).find(i => i.port === p);
+  if (hasL2(d) && !p.ip && !p.routed) return l2Receive(d, p, f, tx.from, tx.tag ?? null);
+  const tag = tx.tag ?? null;
+  if (d.def.host && tag !== null) return `Descartada: llega con etiqueta 802.1Q (VLAN ${tag}) y un equipo final no entiende tramas etiquetadas. ¿El puerto del switch está en modo troncal?`;
+  // las respuestas DHCP llegan a un cliente que aún no tiene IP
+  if (d.def.host && f.type === 'IPv4' && f.ip.udp?.dport === 68) return dhcpClientReceive(d, f.ip);
+  // en el router, la etiqueta decide la subinterfaz (Gi0/0.10 ↔ VLAN 10); sin etiqueta, la interfaz principal o la nativa
+  const iface = d.def.host ? hostIface(d) : l3Ifaces(d).find(i => i.port === p && (tag === null ? !i.sub || i.sub.native : i.sub?.vlan === tag && !i.sub.native));
+  if (!iface && tag !== null) return `Descartada: trama de la VLAN ${tag} y ${p.short} no tiene ninguna subinterfaz con «encapsulation dot1Q ${tag}».`;
   if (!iface || !iface.ip) return `Descartada: ${p.short} no tiene dirección IP.`;
   return l3Receive(d, iface, f);
 }
-const l2Ports = d => d.ports.filter(p => p.type !== 'console' && !p.ip);
-function l2Receive(d, inPort, f, fromPort) {
-  d.macTable.set(f.src, inPort);
-  let info = `Aprende ${f.src} en ${inPort.short}. `;
-  if (d.kind === 'l3switch' && d.svi.ip && (f.dst === d.svi.mac || f.dst === BCAST)) {
-    const r = l3Receive(d, l3Ifaces(d).find(i => i.svi), f);
-    if (f.dst === d.svi.mac) return info + 'Vlan1: ' + r;
-    info += 'Vlan1: ' + r + ' ';
+const l2Ports = d => d.ports.filter(p => p.type !== 'console' && !p.ip && !p.routed);
+// ¿Puede salir una trama de esta VLAN por el puerto? (acceso de esa VLAN o troncal que la permite, y no bloqueado por STP)
+const carries = (p, vlan) => p.stp?.state !== 'BLK' && (p.mode === 'trunk' ? !p.allowed || p.allowed.has(vlan) : p.vlan === vlan);
+const egressTag = (p, vlan) => p.mode === 'trunk' && vlan !== p.native ? vlan : null;
+function l2Receive(d, inPort, f, fromPort, tag) {
+  if (inPort.stp?.state === 'BLK') return `Descartada: ${inPort.short} está bloqueado por STP (evita un bucle).`;
+  let vlan;
+  if (inPort.mode === 'trunk') {
+    vlan = tag ?? inPort.native;
+    if (inPort.allowed && !inPort.allowed.has(vlan)) return `Descartada: la VLAN ${vlan} no está permitida en el troncal ${inPort.short}.`;
+  } else {
+    if (tag !== null) return `Descartada: llega etiquetada (VLAN ${tag}) a ${inPort.short}, que es un puerto de acceso. ¿Falta configurar el troncal en el otro extremo?`;
+    vlan = inPort.vlan;
   }
-  return info + l2Forward(d, inPort, f, fromPort);
+  if (hasSvi(d) && !d.vlans.has(vlan)) return `Descartada: la VLAN ${vlan} no existe en ${d.name} (el puerto queda inactivo hasta que se cree).`;
+  d.macTable.set(`${vlan}|${f.src}`, inPort);
+  let info = `${tag !== null ? `Etiqueta 802.1Q: VLAN ${tag}. ` : hasSvi(d) && vlan !== 1 ? `VLAN ${vlan}. ` : ''}Aprende ${f.src} en ${inPort.short}. `;
+  const svi = hasSvi(d) && d.svis[vlan];
+  if (svi && svi.ip && !svi.shutdown && (f.dst === svi.mac || f.dst === BCAST)) {
+    const r = l3Receive(d, l3Ifaces(d).find(i => i.svi === vlan), f);
+    if (f.dst === svi.mac) return info + `Vlan${vlan}: ` + r;
+    info += `Vlan${vlan}: ` + r + ' ';
+  }
+  return info + l2Forward(d, inPort, f, fromPort, vlan);
 }
-function l2Forward(d, inPort, f, fromPort) {
+function l2Forward(d, inPort, f, fromPort, vlan = 1) {
   // por la radio del AP se reenvía también hacia el mismo puerto Wireless0 (otros clientes)
   const relay = p => p !== inPort || p.type === 'wireless';
-  const known = f.dst !== BCAST && d.macTable.get(f.dst);
-  if (known) {
+  const known = f.dst !== BCAST && d.macTable.get(`${vlan}|${f.dst}`);
+  if (known && carries(known, vlan)) {
     if (!relay(known)) return `Filtrada: el destino está en el mismo puerto ${known.short}.`;
-    transmit(known, f, fromPort);
-    return `Reenvía por ${known.short} (MAC conocida).`;
+    transmit(known, f, fromPort, egressTag(known, vlan));
+    return `Reenvía por ${known.short} (MAC conocida${egressTag(known, vlan) ? `, etiquetada VLAN ${vlan}` : ''}).`;
   }
-  const outs = l2Ports(d).filter(p => relay(p) && neighbors(p).some(n => n.to !== fromPort));
-  outs.forEach(p => transmit(p, f, fromPort));
-  return `${f.dst === BCAST ? 'Difusión' : 'MAC desconocida'}: inunda por ${outs.map(p => p.short).join(', ') || 'ningún puerto'}.`;
+  const outs = l2Ports(d).filter(p => relay(p) && carries(p, vlan) && neighbors(p).some(n => n.to !== fromPort));
+  outs.forEach(p => transmit(p, f, fromPort, egressTag(p, vlan)));
+  const blocked = l2Ports(d).filter(p => p.stp?.state === 'BLK' && p !== inPort);
+  return `${f.dst === BCAST ? 'Difusión' : 'MAC desconocida'}${hasSvi(d) ? ` en la VLAN ${vlan}` : ''}: inunda por ${outs.map(p => p.short + (egressTag(p, vlan) ? ' (etiquetada)' : '')).join(', ') || 'ningún puerto'}.${blocked.length ? ` No sale por ${blocked.map(p => p.short).join(', ')} (bloqueado por STP).` : ''}`;
 }
 function l3Receive(d, iface, f) {
   if (f.dst !== iface.mac && f.dst !== BCAST) return `Descartada: la MAC destino ${f.dst} no es la suya.`;
@@ -1353,21 +2682,303 @@ function l3Receive(d, iface, f) {
     return `ARP Reply: anota ${a.sip} → ${a.smac}${q.length ? ` y envía ${q.length} paquete(s) que esperaban` : ''}.`;
   }
   const pkt = f.ip;
-  if (ifacesOf(d).some(i => i.ip === pkt.dst)) {
+  const bcast = pkt.dst === BCAST_IP;
+  if (bcast || ifacesOf(d).some(i => i.ip === pkt.dst)) {
+    if (pkt.proto === 'UDP') return udpReceive(d, iface, pkt, bcast);
+    if (pkt.proto === 'TCP') return tcpReceive(d, pkt);
+    if (bcast) return 'Difusión IP sin ningún servicio que la atienda: la descarta.';
     if (pkt.icmp.type === 8) {
       if (pkt.op && !pkt.op.inShort) pkt.op.inShort = iface.short;
-      ipSend(d, { src: pkt.dst, dst: pkt.src, ttl: 64, icmp: { type: 0, id: pkt.icmp.id, seq: pkt.icmp.seq }, op: pkt.op });
+      ipSend(d, { src: pkt.dst, dst: pkt.src, ttl: 64, proto: 'ICMP', icmp: { type: 0, id: pkt.icmp.id, seq: pkt.icmp.seq }, op: pkt.op });
       return `ICMP Echo Request para ${pkt.dst}: contesta con Echo Reply.`;
     }
     pingDone(pkt);
-    return `ICMP Echo Reply recibido (TTL=${pkt.ttl}).`;
+    return `ICMP ${ICMP_NAMES[pkt.icmp.type]} recibido desde ${pkt.src} (TTL=${pkt.ttl}).`;
   }
-  if (d.def.host) return `Descartado: la IP ${pkt.dst} no es la suya.`;
-  if (pkt.ttl <= 1) { failOp(pkt, `TTL agotado en ${d.name}`); return 'Descartado: TTL agotado.'; }
+  if (d.def.host || d.kind === 'switch') return `Descartado: la IP ${pkt.dst} no es la suya.`;
+  if (pkt.ttl <= 1) {
+    failOp(pkt, `TTL agotado en ${d.name}`);
+    return 'Descartado: TTL agotado.' + (icmpError(d, iface, pkt, 11) ? ' Avisa al origen con ICMP Tiempo excedido.' : '');
+  }
   const fwd = { ...pkt, ttl: pkt.ttl - 1 };
   const rt = resolveRoute(d, fwd.dst);
+  if (rt.error) {
+    failOp(pkt, rt.error);
+    return `Descartado: ${rt.error}.` + (icmpError(d, iface, pkt, 3) ? ' Avisa al origen con ICMP Destino inaccesible.' : '');
+  }
   ipSend(d, fwd);
-  return rt.error ? `Descartado: ${rt.error}.` : `Enruta hacia ${fwd.dst} por ${rt.iface.short} (siguiente salto ${rt.nextHop}), TTL ${pkt.ttl}→${fwd.ttl}.`;
+  return `Enruta hacia ${fwd.dst} por ${rt.iface.short} (siguiente salto ${rt.nextHop}), TTL ${pkt.ttl}→${fwd.ttl}.`;
+}
+const ICMP_NAMES = { 0: 'Echo Reply', 3: 'Destino inaccesible', 8: 'Echo Request', 11: 'Tiempo excedido' };
+// El router avisa al origen de un Echo Request que no puede entregar (no se avisa de errores ICMP)
+function icmpError(d, iface, pkt, type) {
+  if (pkt.proto !== 'ICMP' || pkt.icmp.type !== 8 || !iface?.ip) return false;
+  ipSend(d, { src: iface.ip, dst: pkt.src, ttl: 64, proto: 'ICMP', icmp: { type, id: pkt.icmp.id, seq: pkt.icmp.seq }, op: pkt.op });
+  return true;
+}
+
+/* ---------- Servicios: DHCP, DNS y HTTP ---------- */
+const ephemeral = () => 1025 + Math.floor(Math.random() * 4000);
+function udpReceive(d, iface, pkt, bcast) {
+  const u = pkt.udp;
+  if (u.dport === 67) {
+    const m = pkt.dhcp;
+    if ((m.type === 'OFFER' || m.type === 'ACK') && m.giaddr && ifacesOf(d).some(i => i.ip === m.giaddr)) return dhcpRelayBack(d, pkt);
+    const scope = dhcpScopeFor(d, m.giaddr || iface.ip);
+    if (scope) return dhcpServerReceive(d, iface, pkt, scope);
+    const helper = ifConf(d, iface).helper;
+    if (bcast && isL3(d) && helper) return dhcpRelay(d, iface, pkt, helper);
+    if (bcast && isL3(d)) return 'Los routers no reenvían difusiones: la petición DHCP no sale de esta red (haría falta un agente de retransmisión, ip helper-address).';
+    if (dhcpScopes(d).length) return `Es servidor DHCP, pero no tiene ningún pool para la red de ${m.giaddr || iface.ip}: descarta la petición.`;
+    return 'No es servidor DHCP: descarta la petición.';
+  }
+  if (u.dport === 68) return 'Respuesta DHCP para un cliente: no es para este equipo, la descarta.';
+  if (bcast) return 'Difusión UDP sin ningún servicio que la atienda: la descarta.';
+  if (u.dport === 53) return dnsServerReceive(d, pkt);
+  if (u.sport === 53 && pkt.dns) return dnsClientReceive(d, pkt);
+  return `Puerto UDP ${u.dport} cerrado: descarta el datagrama.`;
+}
+
+// DHCP: el cliente pide en difusión con IP 0.0.0.0; el servidor contesta en difusión
+function dhcpPacket(src, sport, msg, op) {
+  return { src, dst: BCAST_IP, ttl: 64, proto: 'UDP', udp: { sport, dport: sport === 68 ? 67 : 68 }, dhcp: msg, op };
+}
+function startDhcp(d, cb = null) {
+  cancelDhcp(d);
+  const nic = hostNic(d), xid = '0x' + hex4() + hex4();
+  Object.assign(d, { ip: '', gw: '', dns: '', ipMode: 'dhcp', dhcpServer: '' });
+  d.arp.clear();
+  d.updateLabel();
+  const op = { id: ++sim.seq, kind: 'dhcp', src: d, xid, stage: 'discover', reason: null, cb };
+  d.dhcpOp = op;
+  sim.ops.set(op.id, op);
+  log(`${d.name}: pide su configuración IP por DHCP (DHCP Discover en difusión desde 0.0.0.0)`);
+  sendFrame(d, hostIface(d), { type: 'IPv4', src: nic.mac, dst: BCAST, ip: dhcpPacket('0.0.0.0', 68, { type: 'DISCOVER', xid, chaddr: nic.mac }, op) });
+  if (selected === d) renderProps();
+  if (sim.mode === 'sim' && sim.paused) showToast('DHCP Discover preparado: pulsa «Reproducir» o «Paso» en el panel de simulación.', 'info');
+  runEngine();
+}
+function cancelDhcp(d) {
+  const op = d.dhcpOp;
+  d.dhcpOp = null;
+  if (!op) return;
+  sim.ops.delete(op.id);
+  op.cb?.(false);
+}
+// Ámbitos DHCP del equipo: el pool del servidor o los «ip dhcp pool» del router
+const dhcpStore = d => d.services?.dhcp || d.ios?.dhcp;
+function dhcpScopes(d) {
+  const s = d.services?.dhcp;
+  if (s) return s.on && s.start ? [{ name: 'serverPool', first: ipToInt(s.start), last: ipToInt(s.start) + s.max - 1, mask: s.mask, gw: s.gw, dns: s.dns, excluded: [] }] : [];
+  if (!d.ios || d.kind === 'switch') return [];
+  return d.ios.dhcp.pools.filter(p => p.net).map(p => {
+    const n = ipToInt(p.net), host = (~ipToInt(p.mask)) >>> 0;
+    return { name: p.name, first: n + 1, last: n + host - 1, mask: p.mask, gw: p.gw, dns: p.dns, excluded: d.ios.dhcp.excluded };
+  });
+}
+const dhcpScopeFor = (d, ip) => dhcpScopes(d).find(sc => netOf(ip, sc.mask) === netOf(intToIp(sc.first >>> 0), sc.mask));
+function dhcpAllocate(d, sc, mac) {
+  const st = dhcpStore(d);
+  const ok = n => n >= sc.first && n <= sc.last && (n & ~ipToInt(sc.mask)) !== 0 && ((n & ~ipToInt(sc.mask)) >>> 0) !== (~ipToInt(sc.mask) >>> 0)
+    && !sc.excluded.some(([a, b]) => n >= ipToInt(a) && n <= ipToInt(b || a));
+  const own = st.leases.get(mac) || st.offers.get(mac);
+  if (own && ok(ipToInt(own))) return own;
+  const used = new Set(devices.flatMap(x => ifacesOf(x).map(i => i.ip)));
+  devices.forEach(x => { const o = dhcpStore(x); if (o) [...o.leases, ...o.offers].forEach(([m, ip]) => { if (m !== mac) used.add(ip); }); });
+  for (let n = sc.first; n <= sc.last; n++) {
+    const ip = intToIp(n >>> 0);
+    if (ok(n) && !used.has(ip)) return ip;
+  }
+  return null;
+}
+function dhcpServerReceive(d, iface, pkt, sc) {
+  const s = dhcpStore(d), m = pkt.dhcp;
+  // con giaddr la respuesta vuelve en unidifusión al agente de retransmisión; si no, en difusión
+  const reply = (type, ip) => {
+    const msg = { type, xid: m.xid, chaddr: m.chaddr, yiaddr: ip, server: iface.ip, mask: sc.mask, gw: sc.gw, dns: sc.dns, giaddr: m.giaddr };
+    if (m.giaddr) ipSend(d, { src: iface.ip, dst: m.giaddr, ttl: 64, proto: 'UDP', udp: { sport: 67, dport: 67 }, dhcp: msg, op: pkt.op });
+    else sendFrame(d, iface, { type: 'IPv4', src: iface.mac, dst: BCAST, ip: dhcpPacket(iface.ip, 67, msg, pkt.op) });
+  };
+  const via = m.giaddr ? ` (llega retransmitido por ${m.giaddr}; contesta al agente)` : '';
+  if (m.type === 'DISCOVER') {
+    const ip = dhcpAllocate(d, sc, m.chaddr);
+    if (!ip) { failOp(pkt, `el pool DHCP de ${d.name} no tiene direcciones libres`); return 'DHCP Discover: el pool está agotado y no puede ofrecer ninguna IP.'; }
+    s.offers.set(m.chaddr, ip);
+    reply('OFFER', ip);
+    return `DHCP Discover de ${m.chaddr}${via}: le ofrece ${ip} del pool ${sc.name} con DHCP Offer.`;
+  }
+  if (m.type === 'REQUEST') {
+    if (m.server !== iface.ip) { s.offers.delete(m.chaddr); return `DHCP Request dirigido a otro servidor (${m.server}): retira su oferta.`; }
+    s.offers.delete(m.chaddr);
+    s.leases.set(m.chaddr, m.requested);
+    reply('ACK', m.requested);
+    return `DHCP Request de ${m.chaddr}${via}: confirma ${m.requested} con DHCP Ack y anota la concesión.`;
+  }
+  return 'Mensaje DHCP desconocido: lo descarta.';
+}
+// Agente de retransmisión (ip helper-address): la difusión del cliente pasa como unidifusión al servidor
+function dhcpRelay(d, iface, pkt, helper) {
+  ipSend(d, { src: iface.ip, dst: helper, ttl: 64, proto: 'UDP', udp: { sport: 67, dport: 67 }, dhcp: { ...pkt.dhcp, giaddr: iface.ip }, op: pkt.op });
+  return `DHCP ${pkt.dhcp.type} en difusión: lo reenvía en unidifusión al servidor ${helper} (ip helper-address) con giaddr ${iface.ip}.`;
+}
+function dhcpRelayBack(d, pkt) {
+  const m = pkt.dhcp, i = l3Ifaces(d).find(x => x.ip === m.giaddr);
+  sendFrame(d, i, { type: 'IPv4', src: i.mac, dst: BCAST, ip: { src: i.ip, dst: BCAST_IP, ttl: 64, proto: 'UDP', udp: { sport: 67, dport: 68 }, dhcp: m, op: pkt.op } });
+  return `DHCP ${m.type} del servidor ${pkt.src}: lo difunde por ${i.short} para que llegue al cliente.`;
+}
+function dhcpClientReceive(d, pkt) {
+  const m = pkt.dhcp, op = d.dhcpOp, nic = hostNic(d);
+  if (m.chaddr !== nic.mac) return `DHCP ${m.type} para ${m.chaddr}: no es su MAC, la descarta.`;
+  if (!op || op.xid !== m.xid) return `DHCP ${m.type} que no esperaba: la descarta.`;
+  if (m.type === 'OFFER') {
+    if (op.stage !== 'discover') return `Otra DHCP Offer (${m.yiaddr} de ${m.server}): ya aceptó una, la ignora.`;
+    op.stage = 'request';
+    sendFrame(d, hostIface(d), { type: 'IPv4', src: nic.mac, dst: BCAST,
+      ip: dhcpPacket('0.0.0.0', 68, { type: 'REQUEST', xid: m.xid, chaddr: nic.mac, requested: m.yiaddr, server: m.server }, op) });
+    return `DHCP Offer: ${m.server} le ofrece ${m.yiaddr}. Pide esa IP con DHCP Request, en difusión para que los demás servidores sepan cuál ha elegido.`;
+  }
+  if (m.type === 'ACK') {
+    Object.assign(d, { ip: m.yiaddr, mask: m.mask, gw: m.gw || '', dns: m.dns || '', dhcpServer: m.server });
+    d.arp.clear();
+    d.updateLabel();
+    sim.ops.delete(op.id);
+    d.dhcpOp = null;
+    op.cb?.(true);
+    log(`${d.name}: configuración DHCP recibida de ${m.server} — IP ${m.yiaddr}/${maskBits(m.mask)}${m.gw ? ' · puerta de enlace ' + m.gw : ''}${m.dns ? ' · DNS ' + m.dns : ''}`, 'ok');
+    return `DHCP Ack: se configura con ${m.yiaddr}/${maskBits(m.mask)}, puerta de enlace ${m.gw || '—'} y DNS ${m.dns || '—'}.`;
+  }
+  return `DHCP ${m.type}: lo descarta.`;
+}
+// Sin respuesta del DHCP, Windows se pone una dirección de enlace local (APIPA)
+function dhcpFail(op) {
+  const d = op.src;
+  d.dhcpOp = null;
+  if (!devices.includes(d)) return;
+  const r = () => 1 + Math.floor(Math.random() * 253);
+  Object.assign(d, { ip: `169.254.${r()}.${r()}`, mask: '255.255.0.0', gw: '', dns: '' });
+  d.updateLabel();
+  log(`${d.name}: el DHCP no responde (${op.reason || 'ningún servidor DHCP contestó'}). Se asigna la IP APIPA ${d.ip}/16: solo podrá comunicarse con equipos de 169.254.0.0/16.`, 'err');
+  op.cb?.(false);
+}
+
+// DNS: registros A y CNAME del servidor; sigue la cadena de alias hasta la IP
+function dnsLookup(records, name) {
+  const answers = [];
+  let n = name;
+  for (let i = 0; i < 8; i++) {
+    const a = records.filter(r => r.name === n && r.type === 'A');
+    if (a.length) { answers.push(...a); return { rcode: 'NOERROR', answers }; }
+    const c = records.find(r => r.name === n && r.type === 'CNAME');
+    if (!c) break;
+    answers.push(c);
+    n = c.value;
+  }
+  return { rcode: 'NXDOMAIN', answers: [] };
+}
+function dnsServerReceive(d, pkt) {
+  const q = pkt.dns;
+  if (!d.services?.dns.on) {
+    failOp(pkt, `${d.name} no tiene el servicio DNS activo (puerto 53 cerrado)`);
+    return 'Puerto UDP 53 cerrado: no tiene el servicio DNS activo y descarta la consulta.';
+  }
+  const { rcode, answers } = dnsLookup(d.services.dns.records, q.qname);
+  ipSend(d, { src: pkt.dst, dst: pkt.src, ttl: 64, proto: 'UDP', udp: { sport: 53, dport: pkt.udp.sport },
+    dns: { id: q.id, qname: q.qname, qr: true, rcode, answers }, op: pkt.op });
+  return rcode === 'NOERROR'
+    ? `Consulta DNS «${q.qname}»: responde ${answers.map(r => `${r.type} ${r.value}`).join(' → ')}.`
+    : `Consulta DNS «${q.qname}»: no está en sus registros, responde NXDOMAIN.`;
+}
+function dnsClientReceive(d, pkt) {
+  const op = pkt.op, q = pkt.dns;
+  if (!op || op.stage !== 'dns' || !sim.ops.has(op.id)) return 'Respuesta DNS que no esperaba: la descarta.';
+  if (op.kind === 'dns') {
+    sim.ops.delete(op.id);
+    op.resolve({ rcode: q.rcode, answers: q.answers });
+    return q.rcode === 'NOERROR' ? `Respuesta DNS: ${q.qname} es ${q.answers[q.answers.length - 1].value}.` : `Respuesta DNS: ${q.qname} no existe (NXDOMAIN).`;
+  }
+  if (q.rcode !== 'NOERROR') {
+    failOp(pkt, `el servidor DNS ${pkt.src} no conoce el nombre ${q.qname} (NXDOMAIN)`);
+    return `Respuesta DNS: ${q.qname} no existe (NXDOMAIN).`;
+  }
+  const a = q.answers[q.answers.length - 1];
+  op.ip = a.value;
+  webStatus(op, `${op.host} → ${op.ip}. Conectando al puerto 80…`);
+  tcpConnect(op);
+  return `Respuesta DNS: ${q.qname} es ${op.ip}. Abre una conexión TCP al puerto 80 (SYN).`;
+}
+
+// HTTP sobre TCP: saludo en tres pasos, GET / y respuesta 200 OK
+function tcpSeg(src, dst, sport, dport, flags, op, http) {
+  return { src, dst, ttl: 64, proto: 'TCP', tcp: { sport, dport, flags }, http, op };
+}
+function tcpConnect(op) {
+  op.stage = 'tcp';
+  op.sport = ephemeral();
+  ipSend(op.src, tcpSeg(op.src.ip, op.ip, op.sport, 80, 'SYN', op));
+}
+function tcpReceive(d, pkt) {
+  const t = pkt.tcp, back = (flags, http) => ipSend(d, tcpSeg(pkt.dst, pkt.src, t.dport, t.sport, flags, pkt.op, http));
+  if (t.dport === 80) {
+    const h = d.services?.http;
+    if (!h?.on) { back('RST'); return 'Puerto TCP 80 cerrado (sin servicio HTTP): rechaza la conexión con RST.'; }
+    if (t.flags === 'SYN') { back('SYN+ACK'); return 'TCP SYN al puerto 80: acepta la conexión con SYN+ACK.'; }
+    if (pkt.http) {
+      back('PSH+ACK', { status: 200, html: h.html });
+      return `HTTP GET ${pkt.http.path}: devuelve index.html (HTTP 200 OK, ${h.html.length} bytes).`;
+    }
+    return 'TCP ACK: conexión establecida (saludo en tres pasos completado).';
+  }
+  const op = pkt.op;
+  if (!op || op.kind !== 'web' || !sim.ops.has(op.id)) return 'Segmento TCP que no esperaba: lo descarta.';
+  if (t.flags === 'RST') {
+    failOp(pkt, `${pkt.src} ha rechazado la conexión: el puerto 80 está cerrado`);
+    return 'TCP RST: conexión rechazada.';
+  }
+  if (t.flags === 'SYN+ACK') {
+    ipSend(d, tcpSeg(d.ip, pkt.src, t.dport, 80, 'ACK', op));
+    ipSend(d, tcpSeg(d.ip, pkt.src, t.dport, 80, 'PSH+ACK', op, { method: 'GET', path: '/', host: op.host }));
+    webStatus(op, `Conectado a ${op.ip}:80. Pidiendo la página (HTTP GET /)…`);
+    return 'TCP SYN+ACK: completa el saludo con ACK y pide la página con HTTP GET /.';
+  }
+  if (pkt.http) {
+    webDone(op, pkt.http.html);
+    return `HTTP 200 OK: recibe la página (${pkt.http.html.length} bytes) y el navegador la muestra.`;
+  }
+  return 'Segmento TCP sin datos: lo acepta.';
+}
+function startWeb(d, host) {
+  const op = { id: ++sim.seq, kind: 'web', src: d, host, ip: null, stage: 'dns', reason: null };
+  const fail = msg => { webStatus(op, msg); log(`${d.name}: no se puede abrir http://${host} — ${msg}`, 'err'); return op; };
+  webOp = op;
+  if (!d.ip) return fail('el equipo no tiene dirección IP.');
+  sim.ops.set(op.id, op);
+  log(`${d.name}: navegador → http://${host}`);
+  if (IPRE.test(host)) {
+    op.ip = host;
+    webStatus(op, `Conectando a ${host}:80…`);
+    tcpConnect(op);
+  } else {
+    if (!d.dns) { sim.ops.delete(op.id); return fail('no tiene servidor DNS configurado para traducir el nombre.'); }
+    webStatus(op, `Resolviendo ${host} con el servidor DNS ${d.dns}…`);
+    ipSend(d, { src: d.ip, dst: d.dns, ttl: 64, proto: 'UDP', udp: { sport: ephemeral(), dport: 53 },
+      dns: { id: Math.floor(Math.random() * 65536), qname: host, qr: false }, op });
+  }
+  if (sim.mode === 'sim' && sim.paused) showToast('Petición preparada: pulsa «Reproducir» o «Paso» en el panel de simulación.', 'info');
+  runEngine();
+  return op;
+}
+function webDone(op, html) {
+  sim.ops.delete(op.id);
+  log(`${op.src.name}: página de http://${op.host} recibida (HTTP 200 OK)`, 'ok');
+  if (webOp === op) { $('#webFrame').srcdoc = html; webStatus(op, `http://${op.host} (${op.ip}) · 200 OK`); }
+}
+function webFail(op) {
+  const why = op.reason || 'el servidor no contestó';
+  log(`${op.src.name}: no se puede acceder a http://${op.host} — ${why}`, 'err');
+  if (webOp === op) {
+    webStatus(op, 'No se puede acceder a este sitio: ' + why);
+    $('#webFrame').srcdoc = `<body style="font-family:sans-serif;padding:30px;color:#444"><h2>No se puede acceder a este sitio</h2><p>${esc(why)}.</p></body>`;
+  }
 }
 
 // Ping: origen equipo final; destino un equipo final o una interfaz del router (la de la red del origen si la hay)
@@ -1394,7 +3005,7 @@ function startPing(src, dst) {
   const op = { id: ++sim.seq, src, dip, out: hostNic(src).short, inShort: null, reason: null };
   sim.pings.set(op.id, op);
   log(`ICMP Echo Request ${src.name} (${src.ip}) → ${dst.name} (${dip})`);
-  ipSend(src, { src: src.ip, dst: dip, ttl: 64, icmp: { type: 8, id: op.id, seq: 1 }, op });
+  ipSend(src, { src: src.ip, dst: dip, ttl: 64, proto: 'ICMP', icmp: { type: 8, id: op.id, seq: 1 }, op });
   if (sim.mode === 'sim' && sim.paused) showToast('PDU preparada: pulsa «Reproducir» o «Paso» en el panel de simulación.', 'info');
   runEngine();
 }
@@ -1402,15 +3013,44 @@ function pingDone(pkt) {
   const op = pkt.op;
   if (!op || !sim.pings.has(op.id)) return;
   sim.pings.delete(op.id);
-  log(`[${op.src.ip}] -> [${op.out}] -> [${op.inShort}] -> [${op.dip}]: Paquete entregado con éxito (TTL=${pkt.ttl})`, 'ok');
+  if (op.cb) { op.cb({ type: pkt.icmp.type, from: pkt.src, ttl: pkt.ttl }); return; }
+  if (pkt.icmp.type === 0) log(`[${op.src.ip}] -> [${op.out}] -> [${op.inShort}] -> [${op.dip}]: Paquete entregado con éxito (TTL=${pkt.ttl})`, 'ok');
+  else log(`[${op.src.ip}] -> [${op.dip}]: ${pkt.src} responde ICMP ${ICMP_NAMES[pkt.icmp.type]} — ${op.reason || ''}`, 'err');
+}
+// Un Echo Request con el TTL indicado; se resuelve con la respuesta ICMP o con { timeout }
+function pingIp(src, dip, ttl = 64) {
+  return new Promise(resolve => {
+    const rt = resolveRoute(src, dip);
+    const op = { id: ++sim.seq, src, dip, out: rt.iface?.short || '', inShort: null, reason: null, cb: resolve };
+    sim.pings.set(op.id, op);
+    ipSend(src, { src: src.def.host ? src.ip : rt.iface?.ip || '', dst: dip, ttl, proto: 'ICMP', icmp: { type: 8, id: op.id, seq: 1 }, op });
+    runEngine();
+  });
+}
+// Consulta DNS de tipo A; se resuelve con { rcode, answers } o con { error }
+function dnsQuery(src, name, server) {
+  return new Promise(resolve => {
+    const op = { id: ++sim.seq, kind: 'dns', src, host: name, stage: 'dns', reason: null, resolve };
+    sim.ops.set(op.id, op);
+    ipSend(src, { src: src.ip, dst: server, ttl: 64, proto: 'UDP', udp: { sport: ephemeral(), dport: 53 },
+      dns: { id: Math.floor(Math.random() * 65536), qname: name, qr: false }, op });
+    runEngine();
+  });
 }
 function finishIdle() {
   devices.forEach(d => {
     d.pendingArp.forEach((q, ip) => q.forEach(({ pkt }) => failOp(pkt, `ARP sin respuesta: nadie contestó por ${ip}`)));
     d.pendingArp.clear();
   });
-  sim.pings.forEach(op => log(`[${op.src.ip}] -> [${op.dip}]: Tiempo de espera agotado — ${op.reason || 'no hubo respuesta'}`, 'err'));
+  const pings = [...sim.pings.values()];
   sim.pings.clear();
+  pings.forEach(op => op.cb ? op.cb({ timeout: true, reason: op.reason })
+    : log(`[${op.src.ip}] -> [${op.dip}]: Tiempo de espera agotado — ${op.reason || 'no hubo respuesta'}`, 'err'));
+  const ops = [...sim.ops.values()];
+  sim.ops.clear();
+  ops.forEach(op => op.kind === 'dhcp' ? dhcpFail(op)
+    : op.kind === 'dns' ? op.resolve({ error: op.reason || 'el servidor DNS no respondió' }) : webFail(op));
+  if (ops.length && selected) renderProps();
 }
 
 function txPoints(tx) {
@@ -1463,7 +3103,7 @@ async function runEngine() {
 const evBody = $('#evBody'), evWrap = $('#evWrap');
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 function addEvent(tx, t) {
-  const ev = { t, last: tx.from.device.name, at: tx.to.device.name, type: pduType(tx.frame), frame: tx.frame, info: '' };
+  const ev = { t, last: tx.from.device.name, at: tx.to.device.name, type: pduType(tx.frame), frame: tx.frame, tag: tx.tag ?? null, info: '' };
   tx.ev = ev;
   sim.events.push(ev);
   const tr = document.createElement('tr');
@@ -1493,8 +3133,13 @@ function resetSim(silent = false) {
   sim.pending = [];
   sim.events = [];
   sim.time = 0;
+  const pings = [...sim.pings.values()], ops = [...sim.ops.values()];
   sim.pings.clear();
-  devices.forEach(d => d.pendingArp.clear());
+  sim.ops.clear();
+  devices.forEach(d => { d.pendingArp.clear(); d.dhcpOp = null; });
+  pings.forEach(op => op.cb?.({ timeout: true, reason: 'simulación reiniciada' }));
+  ops.forEach(op => op.kind === 'dns' ? op.resolve({ error: 'simulación reiniciada' }) : op.cb?.(false));
+  if (webOp) { $('#webStatus').textContent = 'Petición cancelada al reiniciar la simulación.'; webOp = null; }
   evBody.innerHTML = '';
   wake();
   updateSimUI();
@@ -1524,14 +3169,33 @@ const kv = (k, v) => `<div class="kv"><span>${k}</span><code>${v}</code></div>`;
 function showPDU(ev) {
   const f = ev.frame;
   let h = `<p class="note">Tiempo ${ev.t} · de <b>${esc(ev.last)}</b> a <b>${esc(ev.at)}</b></p>
-    <div class="layer"><b>Capa 2 · Ethernet II</b>${kv('MAC origen', f.src)}${kv('MAC destino', f.dst + (f.dst === BCAST ? ' (difusión)' : ''))}${kv('Tipo', f.type === 'ARP' ? '0x0806 (ARP)' : '0x0800 (IPv4)')}</div>`;
+    <div class="layer"><b>Capa 2 · Ethernet II</b>${kv('MAC origen', f.src)}${kv('MAC destino', f.dst + (f.dst === BCAST ? ' (difusión)' : ''))}${ev.tag !== null && ev.tag !== undefined ? kv('802.1Q', `TPID 0x8100 · VLAN ${ev.tag}`) : ''}${kv('Tipo', f.type === 'ARP' ? '0x0806 (ARP)' : '0x0800 (IPv4)')}</div>`;
   if (f.type === 'ARP') {
     const a = f.arp;
     h += `<div class="layer"><b>ARP · ${a.op === 1 ? 'Request (¿quién tiene esta IP?)' : 'Reply'}</b>${kv('MAC emisor', a.smac)}${kv('IP emisor', a.sip)}${kv('MAC destino', a.tmac)}${kv('IP destino', a.tip)}</div>`;
   } else {
-    const p = f.ip;
-    h += `<div class="layer"><b>Capa 3 · IPv4</b>${kv('IP origen', p.src)}${kv('IP destino', p.dst)}${kv('TTL', p.ttl)}${kv('Protocolo', '1 (ICMP)')}</div>
-      <div class="layer"><b>ICMP · ${p.icmp.type === 8 ? 'Echo Request' : 'Echo Reply'}</b>${kv('Tipo', p.icmp.type)}${kv('Identificador', p.icmp.id)}${kv('Secuencia', p.icmp.seq)}</div>`;
+    const p = f.ip, proto = p.proto || 'ICMP';
+    h += `<div class="layer"><b>Capa 3 · IPv4</b>${kv('IP origen', p.src)}${kv('IP destino', p.dst + (p.dst === BCAST_IP ? ' (difusión)' : ''))}${kv('TTL', p.ttl)}${kv('Protocolo', { ICMP: '1 (ICMP)', UDP: '17 (UDP)', TCP: '6 (TCP)' }[proto])}</div>`;
+    if (proto === 'ICMP') {
+      h += `<div class="layer"><b>ICMP · ${ICMP_NAMES[p.icmp.type]}</b>${kv('Tipo', p.icmp.type)}${kv('Identificador', p.icmp.id)}${kv('Secuencia', p.icmp.seq)}</div>`;
+    } else if (proto === 'UDP') {
+      h += `<div class="layer"><b>Capa 4 · UDP</b>${kv('Puerto origen', p.udp.sport)}${kv('Puerto destino', p.udp.dport)}</div>`;
+      if (p.dhcp) {
+        const m = p.dhcp, what = { DISCOVER: 'Discover (¿hay algún servidor DHCP?)', OFFER: 'Offer (te ofrezco esta IP)', REQUEST: 'Request (quiero esta IP)', ACK: 'Ack (concedida)' }[m.type];
+        h += `<div class="layer"><b>DHCP · ${what}</b>${kv('Transacción (xid)', m.xid)}${kv('MAC del cliente', m.chaddr)}` +
+          (m.yiaddr ? kv('IP ofrecida', m.yiaddr) : '') + (m.requested ? kv('IP pedida', m.requested) : '') + (m.server ? kv('Servidor DHCP', m.server) : '') +
+          (m.mask ? kv('Máscara', m.mask) + kv('Puerta de enlace', m.gw || '—') + kv('Servidor DNS', m.dns || '—') : '') + '</div>';
+      } else if (p.dns) {
+        const q = p.dns;
+        h += `<div class="layer"><b>DNS · ${q.qr ? 'Respuesta' : 'Consulta'}</b>${kv('Identificador', q.id)}${kv('Pregunta', esc(q.qname) + ' (A)')}` +
+          (q.qr ? kv('Código', q.rcode) + (q.answers.length ? q.answers.map(r => kv(r.type, `${esc(r.name)} → ${esc(r.value)}`)).join('') : '') : '') + '</div>';
+      }
+    } else {
+      h += `<div class="layer"><b>Capa 4 · TCP</b>${kv('Puerto origen', p.tcp.sport)}${kv('Puerto destino', p.tcp.dport)}${kv('Indicadores', p.tcp.flags)}</div>`;
+      if (p.http) h += p.http.method
+        ? `<div class="layer"><b>HTTP · Petición</b><code>${p.http.method} ${p.http.path} HTTP/1.1</code><code>Host: ${esc(p.http.host)}</code></div>`
+        : `<div class="layer"><b>HTTP · Respuesta</b><code>HTTP/1.1 ${p.http.status} OK</code><code>Content-Type: text/html</code><code>Content-Length: ${p.http.html.length}</code></div>`;
+    }
   }
   h += `<div class="layer res"><b>Qué hace ${esc(ev.at)}</b><div>${esc(ev.info || 'La PDU aún está en el cable.')}</div></div>`;
   $('#pduTitle').textContent = `PDU ${ev.type} en ${ev.at}`;
@@ -1654,11 +3318,14 @@ addEventListener('keydown', e => {
   const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName);
   if (e.key === 'Escape') {
     if (!modalBg.hidden) { closeIP(); return; }
+    if (!svcBg.hidden) { closeSvc(); return; }
+    if (!termBg.hidden) { closeTerm(); return; }
+    if (!webBg.hidden) { closeWeb(); return; }
     if (!$('#pduBg').hidden) { $('#pduBg').hidden = true; return; }
     setMode('select');
     return;
   }
-  if (typing || !modalBg.hidden) return;
+  if (typing || !modalBg.hidden || !svcBg.hidden || !webBg.hidden || !termBg.hidden) return;
   if ((e.key === 'Delete' || e.key === 'Supr') && selected) removeDevice(selected);
 });
 
@@ -1668,7 +3335,7 @@ document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click'
 }));
 $('#mdix').addEventListener('change', e => {
   autoMDIX = e.target.checked;
-  links.forEach(l => l.rebuild());
+  rebuildAll();
   wlinks.forEach(l => l.rebuild());
   const down = links.filter(l => !l.up);
   log(`Auto-MDIX ${autoMDIX ? 'activado: los puertos detectan el par de transmisión, cualquier cable UTP sirve' : 'desactivado: hay que elegir directo o cruzado según los equipos'}${down.length ? ` · ${down.length} enlace(s) caído(s)` : ''}`, autoMDIX ? 'info' : 'warn');
@@ -1705,6 +3372,7 @@ $('#btnClear').addEventListener('click', e => {
   log('Escena vaciada', 'warn');
 });
 $('#btnDemo').addEventListener('click', () => { clearAll(); buildDemo(); });
+$('#btnDemoVlan').addEventListener('click', () => { clearAll(); buildDemoVlan(); });
 $('#logClear').addEventListener('click', () => logBody.innerHTML = '');
 $('#logMin').addEventListener('click', e => {
   const min = $('#log').classList.toggle('min');
@@ -1725,6 +3393,7 @@ function clearAll() {
 function buildDemo() {
   const V = (x, z) => new THREE.Vector3(x, 0, z);
   const r0 = addDevice('router', V(0, -7), true);
+  r0.ports.forEach(p => p.shutdown = false);
   const s0 = addDevice('switch', V(0, 0), true);
   const s1 = addDevice('switch', V(-10, 0), true);
   const pc0 = addDevice('pc', V(-4, 6), true);
@@ -1738,9 +3407,16 @@ function buildDemo() {
   const lap0 = addDevice('laptop', V(12, -2), true);
   const pp0 = addDevice('patch', V(-15, -2), true);
   const srv0 = addDevice('server', V(-19, -7), true);
-  [[pc0, '192.168.1.10'], [pc1, '192.168.1.11'], [pc2, '192.168.1.12'], [pc3, '192.168.1.13'], [lap0, '192.168.1.14'],
-   [pc4, '192.168.1.20'], [srv0, '192.168.1.100']].forEach(([d, ip]) => Object.assign(d, { ip, gw: '192.168.1.1' }));
-  Object.assign(pc5, { ip: '192.168.2.10', gw: '192.168.2.1' });
+  [[pc0, '192.168.1.10'], [pc1, '192.168.1.11'], [pc2, '192.168.1.12'], [pc3, '192.168.1.13'],
+   [pc4, '192.168.1.20'], [srv0, '192.168.1.100']].forEach(([d, ip]) => Object.assign(d, { ip, gw: '192.168.1.1', dns: '192.168.1.100' }));
+  Object.assign(pc5, { ip: '192.168.2.10', gw: '192.168.2.1', dns: '192.168.1.100' });
+  lap0.ipMode = 'dhcp';
+  Object.assign(srv0.services.dhcp, { on: true, start: '192.168.1.50', max: 50, gw: '192.168.1.1', dns: '192.168.1.100' });
+  Object.assign(srv0.services.dns, { on: true, records: [
+    { name: 'www.smx.lan', type: 'A', value: '192.168.1.100' },
+    { name: 'server0.smx.lan', type: 'A', value: '192.168.1.100' },
+    { name: 'router0.smx.lan', type: 'A', value: '192.168.1.1' },
+    { name: 'intranet.smx.lan', type: 'CNAME', value: 'www.smx.lan' }] });
   r0.port('GigabitEthernet0/0').ip = '192.168.1.1';
   r0.port('GigabitEthernet0/1').ip = '192.168.3.1';
   r0.routes = [{ net: '192.168.2.0', mask: '255.255.255.0', via: '192.168.3.2' }];
@@ -1761,6 +3437,48 @@ function buildDemo() {
   addLink('straight', ml0.port('FastEthernet0/2'), pc5.port('FastEthernet0'), true);
   updateWireless();
   log('Topología de ejemplo: LAN 192.168.1.0/24 (puerta de enlace Router0) · enlace 192.168.3.0/24 Router0–MLSwitch0 · LAN 192.168.2.0/24 tras MLSwitch0 (Vlan1) · PC2 y Laptop0 por Wi-Fi · Server0 a través de PatchPanel0 · PC4 con cable de consola al router');
+  log('Server0 (192.168.1.100) da DHCP (pool 192.168.1.50), DNS (www.smx.lan, intranet.smx.lan…) y HTTP. Laptop0 pide su IP por DHCP; prueba el «Navegador web» de cualquier PC.');
+  startDhcp(lap0);
+}
+
+// VLAN 10 (alumnos) y 20 (profesores) en tres switches unidos en triángulo; STP bloquea un enlace; router-on-a-stick
+function buildDemoVlan() {
+  const V = (x, z) => new THREE.Vector3(x, 0, z);
+  const r0 = addDevice('router', V(0, -13), true);
+  const sa = addDevice('switch', V(0, -5), true), sb = addDevice('switch', V(-10, 3), true), sc = addDevice('switch', V(10, 3), true);
+  const pc0 = addDevice('pc', V(-15, 10), true), pc1 = addDevice('pc', V(-6, 11), true);
+  const pc2 = addDevice('pc', V(6, 11), true), pc3 = addDevice('pc', V(15, 10), true);
+  const srv = addDevice('server', V(9, -9), true);
+  r0.ports.forEach(p => p.shutdown = false);
+  const g0 = r0.port('GigabitEthernet0/0');
+  g0.subs.push({ id: '10', vlan: 10, native: false, ip: '192.168.10.1', mask: '255.255.255.0', desc: 'ALUMNOS', helper: '', shutdown: false },
+    { id: '20', vlan: 20, native: false, ip: '192.168.20.1', mask: '255.255.255.0', desc: 'PROFES', helper: '', shutdown: false });
+  [sa, sb, sc].forEach(s => { s.vlans.set(10, 'ALUMNOS'); s.vlans.set(20, 'PROFES'); });
+  sa.stpPriority = 24576;
+  const trunk = (s, ...ns) => ns.forEach(n => s.port(n).mode = 'trunk');
+  trunk(sa, 'FastEthernet0/1', 'FastEthernet0/2', 'GigabitEthernet0/1');
+  trunk(sb, 'FastEthernet0/1', 'FastEthernet0/2');
+  trunk(sc, 'FastEthernet0/1', 'GigabitEthernet0/1');
+  sb.port('FastEthernet0/3').vlan = 10; sb.port('FastEthernet0/4').vlan = 20;
+  sc.port('FastEthernet0/3').vlan = 10; sc.port('FastEthernet0/4').vlan = 20;
+  sa.port('FastEthernet0/3').vlan = 20;
+  [[pc0, '192.168.10.10', 10], [pc2, '192.168.10.11', 10], [pc1, '192.168.20.10', 20], [pc3, '192.168.20.11', 20], [srv, '192.168.20.100', 20]]
+    .forEach(([d, ip, v]) => Object.assign(d, { ip, gw: `192.168.${v}.1`, dns: '192.168.20.100' }));
+  Object.assign(srv.services.dns, { on: true, records: [{ name: 'www.smx.lan', type: 'A', value: '192.168.20.100' }] });
+  devices.forEach(d => d.updateLabel());
+  addLink('straight', g0, sa.port('FastEthernet0/1'), true);
+  addLink('crossover', sa.port('FastEthernet0/2'), sb.port('FastEthernet0/1'), true);
+  addLink('crossover', sb.port('FastEthernet0/2'), sc.port('FastEthernet0/1'), true);
+  addLink('fiber', sa.port('GigabitEthernet0/1'), sc.port('GigabitEthernet0/1'), true);
+  addLink('straight', sb.port('FastEthernet0/3'), pc0.port('FastEthernet0'), true);
+  addLink('straight', sb.port('FastEthernet0/4'), pc1.port('FastEthernet0'), true);
+  addLink('straight', sc.port('FastEthernet0/3'), pc2.port('FastEthernet0'), true);
+  addLink('straight', sc.port('FastEthernet0/4'), pc3.port('FastEthernet0'), true);
+  addLink('straight', sa.port('FastEthernet0/3'), srv.port('GigabitEthernet0'), true);
+  updateWireless();
+  const blk = devices.flatMap(d => d.ports).find(p => p.stp?.state === 'BLK');
+  log('Ejemplo VLAN: VLAN 10 ALUMNOS (192.168.10.0/24: PC0, PC2) y VLAN 20 PROFES (192.168.20.0/24: PC1, PC3, Server0) · troncales 802.1Q entre switches y hacia Router0 · router-on-a-stick: Gi0/0.10 y Gi0/0.20');
+  log(`STP: Switch0 es el puente raíz (prioridad 24576)${blk ? `; ${blk.device.name} ${blk.short} queda bloqueado para romper el bucle del triángulo` : ''}. Prueba «show spanning-tree» y «show vlan brief» en la CLI.`);
 }
 
 /* ---------- Bucle de render ---------- */
@@ -1786,9 +3504,6 @@ $('#legend').innerHTML = '<b>TIA-606</b>' + Object.values(TIA).map(t =>
   '<span>· cruzado con anillas · fibra fina y luminosa · caído translúcido</span>';
 log('Simulador listo. Elige un equipo en la barra superior y haz clic en la cuadrícula para colocarlo.');
 buildDemo();
-</script>
-<script>
-if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js'));
 </script>
 </body>
 </html>
