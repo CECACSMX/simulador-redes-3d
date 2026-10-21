@@ -36,6 +36,7 @@ button.danger.armed{background:var(--bad);color:#fff}
 #legend{display:flex;flex-wrap:wrap;gap:3px 9px;font-size:11px;color:var(--muted);align-items:center}
 #legend i{display:inline-block;width:14px;height:5px;border-radius:2px;margin-right:3px;vertical-align:middle;border:1px solid #b9c4cf}
 #hint b{color:var(--ink)}
+#credit{flex-basis:100%;font-size:10.5px;color:var(--muted);opacity:.85}
 #props{position:fixed;top:calc(var(--tb, 100px) + 20px);right:10px;width:320px;max-height:calc(100% - var(--tb, 100px) - 40px);overflow:auto;padding:12px;z-index:9}
 #props .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 #props h3{margin:0;font-size:16px}
@@ -206,7 +207,8 @@ body.lbl-names .devlabel small,body.lbl-none .devlabel,body.lbl-none .iflabel{di
     <button id="btnDemoVlan" title="Tres switches en triángulo (STP), VLAN 10 y 20, troncales y router-on-a-stick">Ejemplo VLAN</button>
     <button id="btnClear" class="danger">Vaciar</button>
   </div>
-  <div id="hintRow"><span id="hint"></span><span id="legend" title="Código de colores TIA-606 según la función del enlace"></span></div>
+  <div id="hintRow"><span id="hint"></span><span id="legend" title="Código de colores TIA-606 según la función del enlace"></span>
+    <span id="credit" title="Proyecto independiente: no está afiliado, patrocinado ni respaldado por Cisco Systems. Cisco, Cisco IOS y Packet Tracer son marcas de Cisco Systems, Inc.">© 2026 Angel Ortiz · licencia MIT · inspirado en Cisco Packet Tracer, sin relación con Cisco</span></div>
 </div>
 
 <div id="props" class="panel" hidden></div>
@@ -314,6 +316,8 @@ body.lbl-names .devlabel small,body.lbl-none .devlabel,body.lbl-none .iflabel{di
 </div>
 
 <script type="module">
+// Simulador de Redes 3D · SMX — © 2026 Angel Ortiz — Licencia MIT (ver LICENSE)
+// Inspirado en Cisco Packet Tracer; proyecto independiente sin relación con Cisco Systems.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';

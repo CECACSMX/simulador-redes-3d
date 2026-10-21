@@ -14,4 +14,16 @@ Simulador de redes en 3D para el ciclo SMX: equipos, cableado con validación de
 **Abrir:** https://cecacsmx.github.io/simulador-redes-3d/ (se puede instalar como aplicación y funciona sin conexión).
 
 Este repositorio solo contiene la versión publicada; se genera con `publicar.py`.
+
+## Licencia
+
+© 2026 Angel Ortiz. Publicado con licencia MIT (ver `LICENSE`): se puede usar, copiar,
+modificar y redistribuir libremente siempre que se conserve el aviso de autoría.
+
 Incluye Three.js 0.160 (licencia MIT, ver `vendor/three/LICENSE`).
+
+## Aviso
+
+Este simulador está inspirado en Cisco Packet Tracer, pero es un proyecto independiente:
+no está afiliado, patrocinado ni respaldado por Cisco Systems. Cisco, Cisco IOS y
+Packet Tracer son marcas de Cisco Systems, Inc.; se citan solo como referencia.
