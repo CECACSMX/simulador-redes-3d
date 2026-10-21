@@ -1,5 +1,5 @@
 // Generado por publicar.py: no editar a mano
-const CACHE = 'redes3d-143ea4e6e0eb';
+const CACHE = 'redes3d-9d1b574c8792';
 const ARCHIVOS = [
   "./",
   "iconos/icono-192.png",

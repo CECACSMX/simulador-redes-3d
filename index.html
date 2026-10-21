@@ -36,7 +36,7 @@ button.danger.armed{background:var(--bad);color:#fff}
 #legend{display:flex;flex-wrap:wrap;gap:3px 9px;font-size:11px;color:var(--muted);align-items:center}
 #legend i{display:inline-block;width:14px;height:5px;border-radius:2px;margin-right:3px;vertical-align:middle;border:1px solid #b9c4cf}
 #hint b{color:var(--ink)}
-#props{position:fixed;top:110px;right:10px;width:320px;max-height:calc(100% - 130px);overflow:auto;padding:12px;z-index:9}
+#props{position:fixed;top:calc(var(--tb, 100px) + 20px);right:10px;width:320px;max-height:calc(100% - var(--tb, 100px) - 40px);overflow:auto;padding:12px;z-index:9}
 #props .ph{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 #props h3{margin:0;font-size:16px}
 #props h4{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
@@ -61,7 +61,7 @@ input[type=text],input[type=url]{font:inherit;border:1px solid var(--line);borde
 #logBody div{white-space:pre-wrap}
 .t{color:#8a99a8;margin-right:6px}
 .l-ok{color:var(--ok);font-weight:600}.l-err{color:var(--bad)}.l-warn{color:#b26b00}.l-hop{color:var(--muted)}
-#toast{position:fixed;top:120px;left:50%;transform:translateX(-50%) translateY(-10px);opacity:0;pointer-events:none;transition:.25s;z-index:30;padding:10px 16px;border-radius:9px;max-width:min(560px,90vw);font-weight:600;box-shadow:0 8px 28px rgba(0,0,0,.2)}
+#toast{position:fixed;top:calc(var(--tb, 100px) + 20px);left:50%;transform:translateX(-50%) translateY(-10px);opacity:0;pointer-events:none;transition:.25s;z-index:30;padding:10px 16px;border-radius:9px;max-width:min(560px,90vw);font-weight:600;box-shadow:0 8px 28px rgba(0,0,0,.2)}
 #toast.show{opacity:1;transform:translateX(-50%)}
 #toast.error{background:#fff1f1;color:#a11d1d;border:2px solid var(--bad)}
 #toast.info{background:#eef6ff;color:#114e8f;border:2px solid var(--accent)}
@@ -123,6 +123,35 @@ body.sim #props{max-height:calc(58vh - 130px)}
 .led{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 6px var(--ok)}
 .led.off{background:var(--bad);box-shadow:0 0 6px var(--bad)}
 .led.blk{background:#f59e0b;box-shadow:0 0 6px #f59e0b}
+.led.blink{animation:blink .35s ease-out}
+@keyframes blink{0%{transform:scale(1.9);background:#fff}100%{transform:scale(1)}}
+/* etiquetas: completas, solo nombres u ocultas */
+body.lbl-names .devlabel small,body.lbl-none .devlabel,body.lbl-none .iflabel{display:none}
+/* notas sobre el plano */
+.stick{pointer-events:auto;width:170px;min-height:60px;background:#fff6b3;border:1px solid #e3cf5a;border-radius:4px 4px 4px 14px;box-shadow:0 4px 12px rgba(0,0,0,.18);font:12px/1.35 system-ui,sans-serif;color:#3d3510;position:relative}
+.stick .tx{padding:8px 10px;white-space:pre-wrap;outline:none;min-height:44px;cursor:grab}
+.stick .tx[contenteditable=true]{cursor:text;background:#fffbe0}
+.stick .x{position:absolute;top:-8px;right:-8px;width:20px;height:20px;border-radius:50%;padding:0;justify-content:center;font-size:11px}
+/* ficha flotante del equipo */
+#tip{position:fixed;z-index:15;pointer-events:none;background:rgba(19,32,45,.92);color:#fff;border-radius:7px;padding:6px 9px;font:12px/1.4 system-ui,sans-serif;max-width:280px}
+#tip b{font-size:13px}
+#tip small{color:#b9c8d8}
+/* panel de actividad */
+#actPanel{position:fixed;left:10px;top:calc(var(--tb, 100px) + 20px);width:min(340px,calc(100% - 20px));max-height:calc(100% - var(--tb, 100px) - 60px);overflow:auto;padding:12px;z-index:9;display:flex;flex-direction:column;gap:8px}
+#actPanel h3{margin:0;font-size:15px}
+#actPanel.min #actBody{display:none}
+#actBody{display:flex;flex-direction:column;gap:8px}
+#actText{white-space:pre-wrap;font-size:13px}
+.score{font:700 28px system-ui,sans-serif}
+.bar{height:8px;border-radius:4px;background:#e7edf3;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--ok)}
+.res{font-size:12px;display:flex;gap:6px;align-items:flex-start;padding:2px 0}
+.res .k{width:16px;flex:none;text-align:center;font-weight:700}
+.res.ok .k{color:var(--ok)}.res.ko .k{color:var(--bad)}
+#actForm{width:min(560px,94vw);max-height:90vh;overflow:auto;padding:16px;display:flex;flex-direction:column;gap:9px}
+#actForm h3{margin:0;font-size:15px}
+#actForm label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+#actForm label.chk{flex-direction:row;color:var(--ink)}
 @media (max-width:700px){#props{top:auto;bottom:10px;width:calc(100% - 20px);max-height:45vh}}
 </style>
 <script type="importmap">
@@ -157,6 +186,19 @@ body.sim #props{max-height:calc(58vh - 130px)}
     <span class="seg"><button id="btnRT" class="active">Tiempo real</button><button id="btnSim">Simulación</button></span>
     <button data-mode="ping">Enviar paquete (PDU)</button>
     <label class="chk" title="Si está desactivado, el cable directo entre equipos del mismo tipo (o el cruzado entre equipos de distinto tipo) deja el enlace caído"><input type="checkbox" id="mdix">Auto-MDIX</label>
+  </div>
+  <div class="group"><span class="gt">Archivo</span>
+    <button id="btnSave" title="Descarga la red en un archivo .json">Guardar</button>
+    <button id="btnOpen" title="Abre una red o una actividad (.json)">Abrir</button>
+    <button id="btnRecover" hidden title="Recupera la red que había al cerrar la última vez">Recuperar sesión</button>
+    <button id="btnActivity" title="Crea una actividad evaluable a partir de la red">Actividad</button>
+    <input type="file" id="fileOpen" accept=".json,application/json" hidden>
+  </div>
+  <div class="group"><span class="gt">Vista</span>
+    <button id="btnFit" title="Encuadra todos los equipos">Encuadrar</button>
+    <button id="btnTop" title="Cambia entre vista cenital y 3D">Cenital</button>
+    <button id="btnLabels" title="Etiquetas: completas, solo nombres u ocultas">Etiquetas: todas</button>
+    <button data-mode="note" title="Coloca una nota sobre el plano">Nota</button>
   </div>
   <div class="group"><span class="gt">Escena</span>
     <button id="btnExport">Exportar escena .OBJ</button>
@@ -203,6 +245,36 @@ body.sim #props{max-height:calc(58vh - 130px)}
   </div>
 </div>
 
+<div id="actPanel" class="panel" hidden>
+  <div class="ph"><div><span class="kind">Actividad</span><h3 id="actTitle"></h3></div><button class="mini" id="actMin" title="Plegar">–</button></div>
+  <div id="actBody">
+    <div id="actText"></div>
+    <div class="row wrap"><button class="primary" id="actCheck">Comprobar</button><span class="note" id="actStatus"></span></div>
+    <div id="actResult"></div>
+  </div>
+</div>
+
+<div id="actBg" class="modalbg" hidden>
+  <form id="actForm" class="panel" autocomplete="off">
+    <h3>Crear actividad</h3>
+    <ol class="note" style="margin:0;padding-left:18px">
+      <li>Monta la red <b>resuelta</b> y pulsa «Capturar la solución».</li>
+      <li>Deja la red como debe encontrarla el alumnado (por ejemplo, sin IP o sin cables).</li>
+      <li>Pulsa «Guardar actividad»: el archivo lleva la red inicial y la solución (ofuscada).</li>
+    </ol>
+    <label>Título<input type="text" id="aTitle" placeholder="Práctica: VLAN y router-on-a-stick"></label>
+    <label>Enunciado<textarea id="aText" rows="4" placeholder="Configura las VLAN 10 y 20…"></textarea></label>
+    <div><b class="note">Qué se evalúa</b><div class="row wrap" id="aCats"></div></div>
+    <label>Pruebas de ping (una por línea: origen destino; el destino puede ser IP o nombre de equipo)
+      <textarea id="aPings" rows="3" placeholder="PC0 192.168.20.10&#10;PC1 Server0"></textarea></label>
+    <label class="chk"><input type="checkbox" id="aDetails" checked>Mostrar al alumnado el detalle de cada comprobación (si no, solo el resumen por apartados)</label>
+    <div class="row wrap center"><button type="button" id="aCapture">Capturar la solución</button><span class="note" id="aCaptured">Sin capturar.</span></div>
+    <div id="aErr" class="ferr"></div>
+    <div class="row end wrap"><button type="button" id="aRemove" class="danger">Quitar la actividad</button><button type="button" id="aCancel">Cerrar</button><button type="submit" class="primary">Guardar actividad</button></div>
+  </form>
+</div>
+
+<div id="tip" hidden></div>
 <div id="ctx" class="panel" hidden></div>
 <div id="toast"></div>
 
@@ -833,6 +905,7 @@ class Link {
       const vl = isL2Port(port) && hasSvi(port.device) ? (port.mode === 'trunk' ? ' · troncal' : port.vlan !== 1 ? ` · V${port.vlan}` : '') : '';
       el.title = (blk ? `${port.name} · STP: puerto bloqueado (alternate) para evitar un bucle` : up ? `${port.name} · enlace activo` : this.downReason) + role;
       el.innerHTML = `<span class="led${blk ? ' blk' : up ? '' : ' off'}"></span>${esc(port.short)}${vl}`;
+      port.ledEl = el.firstChild;
       const o = new CSS2DObject(el);
       o.position.copy(this.curve.getPoint(ts[k]));
       o.position.y += 0.4;
@@ -1058,10 +1131,12 @@ function select(d) {
 
 const HINTS = {
   select: '<b>Clic</b>: seleccionar · <b>Arrastrar</b>: mover · <b>Doble clic</b>: configurar IP · <b>Supr</b>: eliminar · <b>Botón derecho</b>: desplazar vista · <b>Rueda</b>: zoom',
-  ping: '<b>Enviar paquete</b>: haz clic en el equipo de <b>origen</b> (PC, portátil o servidor).'
+  ping: '<b>Enviar paquete</b>: haz clic en el equipo de <b>origen</b> (PC, portátil o servidor).',
+  note: '<b>Nota</b>: haz clic en el plano para colocarla. Doble clic sobre una nota para editarla; arrástrala para moverla. <b>Esc</b> para cancelar.'
 };
 function setHint(html) { $('#hint').innerHTML = html; }
 function setMode(m) {
+  clearGhost();
   mode = m;
   cableStart = null;
   pingSrc = null;
@@ -2665,9 +2740,17 @@ function neighbors(port) {
 const animators = new Set();
 function animateAlong(points, color, speed = 8) {
   return new Promise(resolve => {
-    const g = new THREE.Group();
-    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.3, depthWrite: false }));
-    g.add(new THREE.Mesh(new THREE.SphereGeometry(0.2, 20, 14), new THREE.MeshBasicMaterial({ color })), halo);
+    // la PDU es un sobre del color del protocolo, con su solapa, que siempre mira a la cámara
+    const g = new THREE.Group(), env = new THREE.Group();
+    const halo = new THREE.Mesh(new THREE.SphereGeometry(0.42, 20, 14), new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, depthWrite: false }));
+    env.add(new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.38, 0.05), new THREE.MeshBasicMaterial({ color })));
+    const flap = new THREE.Mesh(new THREE.ShapeGeometry(new THREE.Shape([new THREE.Vector2(-0.28, 0.19), new THREE.Vector2(0.28, 0.19), new THREE.Vector2(0, -0.05)])),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(0.62) }));
+    flap.position.z = 0.03;
+    env.add(flap);
+    g.add(env, halo);
+    const face = () => env.quaternion.copy(camera.quaternion);
+    face();
     g.position.copy(points[0]);
     scene.add(g);
     const cum = [0];
@@ -2677,6 +2760,7 @@ function animateAlong(points, color, speed = 8) {
     const step = dt => {
       s += dt * speed; t += dt;
       halo.scale.setScalar(1 + 0.2 * Math.sin(t * 12));
+      face();
       if (s >= total) {
         animators.delete(step);
         scene.remove(g);
@@ -3189,7 +3273,14 @@ function showTx(tx, t) {
   const visible = sim.mode === 'realtime' || sim.filters[pduType(tx.frame)];
   if (!visible) return Promise.resolve();
   if (sim.mode === 'sim') addEvent(tx, t);
-  return animateAlong(txPoints(tx), pduColor(tx.frame), sim.mode === 'sim' ? sim.speed : 24);
+  return animateAlong(txPoints(tx), pduColor(tx.frame), sim.mode === 'sim' ? sim.speed : 24).then(() => blinkPort(tx.to));
+}
+function blinkPort(p) {
+  const e = p.ledEl;
+  if (!e?.isConnected) return;
+  e.classList.remove('blink');
+  void e.offsetWidth;
+  e.classList.add('blink');
 }
 const waitWake = () => new Promise(r => { sim.wake = r; });
 function wake() { const w = sim.wake; sim.wake = null; if (w) w(); }
@@ -3389,8 +3480,51 @@ canvas.addEventListener('pointermove', e => {
     }
     return;
   }
-  if (mode === 'select' && !e.buttons) canvas.style.cursor = pickDevice(e) ? 'grab' : 'default';
+  if (mode.startsWith('place:')) { moveGhost(e); hideTip(); return; }
+  if (e.buttons) { hideTip(); return; }
+  const d = pickDevice(e);
+  if (mode === 'select') canvas.style.cursor = d ? 'grab' : 'default';
+  showTip(d, e);
 });
+canvas.addEventListener('pointerleave', () => { hideTip(); if (ghost) ghost.obj.visible = false; });
+
+// Vista previa translúcida del equipo que se va a colocar
+let ghost = null;
+function clearGhost() {
+  if (!ghost) return;
+  scene.remove(ghost.obj);
+  disposeObject(ghost.obj);
+  ghost = null;
+}
+function moveGhost(e) {
+  const kind = mode.slice(6), gp = groundPoint(e);
+  if (!ghost || ghost.kind !== kind) {
+    clearGhost();
+    const o = BUILDERS[kind]();
+    o.traverse(c => { if (c.material) Object.assign(c.material, { transparent: true, opacity: 0.45, depthWrite: false }); c.castShadow = false; });
+    scene.add(o);
+    ghost = { kind, obj: o };
+  }
+  ghost.obj.visible = !!gp;
+  if (gp) ghost.obj.position.set(snap(gp.x), 0, snap(gp.z));
+}
+// Ficha flotante con lo esencial del equipo bajo el ratón
+const tip = $('#tip');
+function hideTip() { tip.hidden = true; }
+function showTip(d, e) {
+  if (!d || drag || noteDrag) { hideTip(); return; }
+  const lines = ifacesOf(d).slice(0, 5).map(i => `${i.short}: ${i.ip}/${maskBits(i.mask)}`);
+  if (d.def.host && !d.ip) lines.push(d.dhcpOp ? 'esperando al DHCP…' : 'sin IP');
+  if (d.kind === 'ap') lines.push(`Wi-Fi «${d.wifi.ssid}» · ${WIFI_SEC[d.wifi.sec]} · canal ${d.wifi.channel}`);
+  if (d.def.wifi && assoc.get(d)) lines.push(`Wi-Fi: conectado a ${assoc.get(d).name}`);
+  if (d.def.wifi && wfail.get(d)) lines.push(`Wi-Fi: ${wfail.get(d).why}`);
+  if (hasSvi(d) && d.stpRoot === d) lines.push('Puente raíz STP');
+  const total = d.ports.filter(p => !p.hidden && p.type !== 'wireless').length, used = d.ports.filter(p => p.link).length;
+  tip.innerHTML = `<b>${esc(d.name)}</b> <small>${d.def.label}</small>${lines.map(l => `<br>${esc(l)}`).join('')}<br><small>${used} de ${total} puertos ocupados · doble clic para configurar</small>`;
+  tip.hidden = false;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + 'px';
+  tip.style.top = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8) + 'px';
+}
 canvas.addEventListener('pointerup', e => {
   if (e.button !== 0) return;
   if (drag) {
@@ -3413,6 +3547,12 @@ canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 function handleClick(e) {
   hideCtx();
+  if (mode === 'note') {
+    const gp = groundPoint(e);
+    if (gp) addNote(new THREE.Vector3(snap(gp.x), 0, snap(gp.z)), 'Nota', true);
+    setMode('select');
+    return;
+  }
   if (mode.startsWith('place:')) {
     const gp = groundPoint(e);
     if (!gp) return;
@@ -3448,7 +3588,7 @@ function handleClick(e) {
 }
 
 addEventListener('keydown', e => {
-  const typing = /INPUT|TEXTAREA/.test(document.activeElement?.tagName);
+  const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName) || document.activeElement?.isContentEditable;
   if (e.key === 'Escape') {
     if (!modalBg.hidden) { closeIP(); return; }
     if (!svcBg.hidden) { closeSvc(); return; }
@@ -3506,6 +3646,46 @@ $('#btnClear').addEventListener('click', e => {
 });
 $('#btnDemo').addEventListener('click', () => { clearAll(); buildDemo(); });
 $('#btnDemoVlan').addEventListener('click', () => { clearAll(); buildDemoVlan(); });
+
+/* ---------- Vista: encuadrar, cenital/3D y etiquetas ---------- */
+let topView = false;
+function moveCamera(pos, target, anim = true) {
+  if (!anim) { camera.position.copy(pos); controls.target.copy(target); controls.update(); return; }
+  const p0 = camera.position.clone(), t0 = controls.target.clone();
+  let k = 0;
+  const step = dt => {
+    k = Math.min(1, k + dt / 0.45);
+    const e = k * k * (3 - 2 * k);
+    camera.position.lerpVectors(p0, pos, e);
+    controls.target.lerpVectors(t0, target, e);
+    if (k >= 1) animators.delete(step);
+  };
+  animators.add(step);
+}
+function fitView(anim = true) {
+  if (!devices.length) return;
+  const box = new THREE.Box3().setFromPoints(devices.map(d => d.pos)), c = box.getCenter(new THREE.Vector3());
+  const r = Math.max(6, box.getSize(new THREE.Vector3()).length() / 2 + 3);
+  const dist = Math.min(85, Math.max(14, r / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) * 0.75));
+  const dir = topView ? new THREE.Vector3(0, 1, 0.002) : new THREE.Vector3(0, 0.66, 0.75);
+  moveCamera(c.clone().add(dir.normalize().multiplyScalar(dist)), c, anim);
+}
+$('#btnFit').addEventListener('click', () => fitView());
+$('#btnTop').addEventListener('click', e => {
+  topView = !topView;
+  e.currentTarget.textContent = topView ? 'Vista 3D' : 'Cenital';
+  fitView();
+});
+const LABEL_MODES = [['', 'todas'], ['lbl-names', 'solo nombres'], ['lbl-none', 'ocultas']];
+let labelMode = 0;
+$('#btnLabels').addEventListener('click', e => {
+  document.body.classList.remove('lbl-names', 'lbl-none');
+  labelMode = (labelMode + 1) % LABEL_MODES.length;
+  if (LABEL_MODES[labelMode][0]) document.body.classList.add(LABEL_MODES[labelMode][0]);
+  e.currentTarget.textContent = `Etiquetas: ${LABEL_MODES[labelMode][1]}`;
+});
+// Los paneles flotantes empiezan debajo de la barra, que crece al estrecharse la ventana
+new ResizeObserver(() => document.documentElement.style.setProperty('--tb', $('#toolbar').offsetHeight + 'px')).observe($('#toolbar'));
 $('#logClear').addEventListener('click', () => logBody.innerHTML = '');
 $('#logMin').addEventListener('click', e => {
   const min = $('#log').classList.toggle('min');
@@ -3521,9 +3701,309 @@ function clearAll() {
   assoc = new Map();
   wfail = new Map();
   cochannel = new Set();
+  notes.slice().forEach(removeNote);
   Object.keys(counters).forEach(k => counters[k] = 0);
   select(null);
 }
+
+/* ---------- Notas sobre el plano ---------- */
+let notes = [], noteDrag = null;
+function addNote(pos, text = 'Nota', edit = false) {
+  const el = document.createElement('div');
+  el.className = 'stick';
+  el.innerHTML = '<div class="tx"></div><button class="mini x" title="Borrar nota">✕</button>';
+  const tx = el.firstChild;
+  tx.textContent = text;
+  const obj = new CSS2DObject(el);
+  obj.position.set(pos.x, 0.2, pos.z);
+  scene.add(obj);
+  const n = { obj, tx, get text() { return tx.textContent; } };
+  el.querySelector('.x').addEventListener('click', () => removeNote(n));
+  const startEdit = () => {
+    tx.contentEditable = 'true';
+    tx.focus();
+    getSelection().selectAllChildren(tx);
+  };
+  tx.addEventListener('dblclick', startEdit);
+  tx.addEventListener('blur', () => { tx.contentEditable = 'false'; });
+  tx.addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); tx.blur(); } });
+  tx.addEventListener('pointerdown', e => {
+    if (tx.isContentEditable || e.button !== 0) return;
+    e.preventDefault();
+    noteDrag = n;
+    controls.enabled = false;
+  });
+  notes.push(n);
+  if (edit) setTimeout(startEdit, 0);
+  return n;
+}
+function removeNote(n) {
+  scene.remove(n.obj);
+  n.obj.element.remove();
+  notes = notes.filter(x => x !== n);
+}
+addEventListener('pointermove', e => {
+  if (!noteDrag) return;
+  const gp = groundPoint(e);
+  if (gp) noteDrag.obj.position.set(snap(gp.x), 0.2, snap(gp.z));
+});
+addEventListener('pointerup', () => { if (noteDrag) { noteDrag = null; controls.enabled = true; } });
+
+/* ---------- Guardar y abrir (.json) ---------- */
+const APP_ID = 'simulador-redes-smx';
+const mapToArr = m => [...m];
+function serializeScene() {
+  const dhcpOut = s => ({ ...s, leases: mapToArr(s.leases), offers: [] });
+  return {
+    app: APP_ID, version: 1, autoMDIX,
+    devices: devices.map(d => ({
+      kind: d.kind, name: d.name, x: d.pos.x, z: d.pos.z,
+      ip: d.ip, mask: d.mask, gw: d.gw, dns: d.dns, ipMode: d.ipMode, dhcpServer: d.dhcpServer || '',
+      routes: d.routes, defaultGw: d.defaultGw, stpOn: d.stpOn, stpPriority: d.stpPriority,
+      vlans: mapToArr(d.vlans), svis: d.svis, wifi: d.wifi || null,
+      services: d.services ? { ...d.services, dhcp: dhcpOut(d.services.dhcp) } : null,
+      ios: d.ios ? { ...d.ios, dhcp: dhcpOut(d.ios.dhcp) } : null,
+      ports: d.ports.map(p => ({ mac: p.mac, ip: p.ip, mask: p.mask, shutdown: p.shutdown, desc: p.desc, helper: p.helper, routed: p.routed,
+        mode: p.mode, vlan: p.vlan, native: p.native, allowed: p.allowed ? [...p.allowed] : null, trunkEnc: p.trunkEnc, subs: p.subs }))
+    })),
+    links: links.map(l => ({ type: l.type, a: [l.a.device.name, l.a.name], b: [l.b.device.name, l.b.name] })),
+    notes: notes.map(n => ({ x: n.obj.position.x, z: n.obj.position.z, text: n.text }))
+  };
+}
+function loadScene(data) {
+  if (data?.app !== APP_ID || !Array.isArray(data.devices)) throw new Error('El archivo no es una red del simulador.');
+  clearAll();
+  autoMDIX = !!data.autoMDIX;
+  $('#mdix').checked = autoMDIX;
+  const dhcpIn = s => ({ ...s, leases: new Map(s.leases || []), offers: new Map() });
+  const byName = new Map();
+  for (const s of data.devices) {
+    if (!DEFS[s.kind] || byName.has(s.name)) continue;
+    const d = addDevice(s.kind, new THREE.Vector3(s.x, 0, s.z), true);
+    ['name', 'ip', 'mask', 'gw', 'dns', 'ipMode', 'dhcpServer', 'routes', 'defaultGw', 'stpOn', 'stpPriority'].forEach(k => { if (s[k] !== undefined) d[k] = s[k]; });
+    if (s.vlans) d.vlans = new Map(s.vlans);
+    if (s.svis) { d.svis = s.svis; d.svi = d.svis[1] || (d.svis[1] = d.svi); }
+    if (s.wifi && d.wifi) Object.assign(d.wifi, s.wifi);
+    if (s.services && d.services) d.services = { ...s.services, dhcp: dhcpIn(s.services.dhcp) };
+    if (s.ios && d.ios) d.ios = { ...d.ios, ...s.ios, dhcp: dhcpIn(s.ios.dhcp) };
+    (s.ports || []).forEach((sp, i) => { if (d.ports[i]) Object.assign(d.ports[i], sp, { allowed: sp.allowed ? new Set(sp.allowed) : null, subs: sp.subs || [] }); });
+    byName.set(d.name, d);
+  }
+  // los contadores siguen al número más alto de cada tipo, para no repetir nombres
+  Object.keys(counters).forEach(k => {
+    const nums = devices.filter(d => d.kind === k).map(d => Number((d.name.match(/(\d+)$/) || [])[1])).filter(n => !isNaN(n));
+    counters[k] = nums.length ? Math.max(...nums) + 1 : devices.filter(d => d.kind === k).length;
+  });
+  for (const l of data.links || []) {
+    const pa = byName.get(l.a[0])?.port(l.a[1]), pb = byName.get(l.b[0])?.port(l.b[1]);
+    if (pa && pb && !pa.link && !pb.link && CABLES[l.type]) addLink(l.type, pa, pb, true);
+  }
+  (data.notes || []).forEach(n => addNote(new THREE.Vector3(n.x, 0, n.z), n.text));
+  devices.forEach(d => d.updateLabel());
+  updateWireless();
+  rebuildAll();
+  fitView(false);
+}
+function saveFile() {
+  const data = serializeScene();
+  if (activity) data.activity = { title: activity.title, text: activity.text, details: activity.details, data: encodeAct({ checks: activity.checks, pings: activity.pings }) };
+  const base = (activity?.title || 'red_smx').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\w-]+/g, '_').slice(0, 50);
+  download(JSON.stringify(data, null, 1), `${base}.json`);
+  log(`Red guardada en ${base}.json (${devices.length} equipos, ${links.length} cables${notes.length ? ', ' + notes.length + ' notas' : ''}${activity ? ', con la actividad' : ''})`);
+}
+function openData(data, origin) {
+  loadScene(data);
+  activity = null;
+  if (data.activity) {
+    try { activity = { title: data.activity.title, text: data.activity.text, details: data.activity.details, ...decodeAct(data.activity.data) }; }
+    catch { showToast('La actividad del archivo está dañada: se abre solo la red.'); }
+  }
+  showActivity();
+  log(`${origin}: ${devices.length} equipos, ${links.length} cables${activity ? ` · actividad «${activity.title}»` : ''}`);
+}
+$('#btnSave').addEventListener('click', saveFile);
+$('#btnOpen').addEventListener('click', () => $('#fileOpen').click());
+$('#fileOpen').addEventListener('change', async e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  try { openData(JSON.parse(await f.text()), `Abierto ${f.name}`); }
+  catch (err) { showToast(`No se puede abrir ${f.name}: ${err.message}`); log(`Error al abrir ${f.name}: ${err.message}`, 'err'); }
+});
+// Al cerrar o cambiar de pestaña se guarda la red en el navegador; al volver se puede recuperar
+const AUTOSAVE = 'simulador-redes-smx:autosave';
+function autosave() {
+  try {
+    const data = serializeScene();
+    if (activity) data.activity = { title: activity.title, text: activity.text, details: activity.details, data: encodeAct({ checks: activity.checks, pings: activity.pings }) };
+    data.savedAt = Date.now();
+    localStorage.setItem(AUTOSAVE, JSON.stringify(data));
+  } catch { /* sin almacenamiento local: no se guarda */ }
+}
+addEventListener('pagehide', autosave);
+addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') autosave(); });
+let recovered = null;
+try { recovered = JSON.parse(localStorage.getItem(AUTOSAVE) || 'null'); } catch { recovered = null; }
+if (recovered?.app === APP_ID && recovered.devices?.length) {
+  const b = $('#btnRecover');
+  b.hidden = false;
+  b.title = `Recupera la red guardada el ${new Date(recovered.savedAt).toLocaleString('es-ES')} (${recovered.devices.length} equipos)`;
+  b.addEventListener('click', () => {
+    try { openData(recovered, 'Sesión recuperada'); b.hidden = true; } catch (err) { showToast(err.message); }
+  });
+}
+
+/* ---------- Modo actividad ---------- */
+let activity = null, actDraft = null;
+const ACT_CATS = { equipos: 'Equipos', cables: 'Cables', ip: 'Direccionamiento IP', rutas: 'Rutas', vlan: 'VLAN y STP',
+  servicios: 'Servicios (DHCP, DNS, HTTP)', wifi: 'Wi-Fi', seguridad: 'Contraseñas', ping: 'Conectividad (ping)' };
+// La solución viaja ofuscada (XOR + base64) para que no se lea abriendo el archivo; no es un cifrado seguro
+const ACT_KEY = new TextEncoder().encode('SMX-CECAC-Simulador');
+function encodeAct(a) {
+  const b = new TextEncoder().encode(JSON.stringify(a));
+  let s = '';
+  b.forEach((x, i) => { s += String.fromCharCode(x ^ ACT_KEY[i % ACT_KEY.length]); });
+  return btoa(s);
+}
+function decodeAct(s) {
+  const bin = atob(s);
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c, i) => c.charCodeAt(0) ^ ACT_KEY[i % ACT_KEY.length])));
+}
+// Hechos comprobables de la red: clave → { apartado, valor, texto }
+function facts() {
+  const F = new Map(), add = (cat, k, v, label) => F.set(k, { cat, v: String(v), label });
+  devices.forEach(d => {
+    const n = d.name;
+    add('equipos', `dev:${n}`, d.kind, `Hay un ${d.def.label} llamado ${n}`);
+    if (d.def.host) {
+      if (d.ipMode === 'dhcp') add('ip', `ip:${n}`, 'dhcp', `${n} obtiene su IP por DHCP`);
+      else if (d.ip) add('ip', `ip:${n}`, `${d.ip}/${d.mask}`, `${n} tiene la IP ${d.ip} con máscara ${d.mask}`);
+      if (d.ipMode !== 'dhcp' && d.gw) add('ip', `gw:${n}`, d.gw, `${n} usa la puerta de enlace ${d.gw}`);
+      if (d.ipMode !== 'dhcp' && d.dns) add('ip', `dns:${n}`, d.dns, `${n} usa el servidor DNS ${d.dns}`);
+    }
+    d.ports.forEach(p => {
+      if (p.ip) add('ip', `if:${n} ${p.name}`, `${p.ip}/${p.mask}`, `${n} ${p.short} tiene la IP ${p.ip} / ${p.mask}`);
+      if (d.kind === 'router' && (p.ip || p.subs.length || p.link) && (p.type === 'copper' || p.type === 'fiber')) add('ip', `on:${n} ${p.name}`, p.shutdown ? 'off' : 'on', `${n} ${p.short} está ${p.shutdown ? 'apagada' : 'encendida (no shutdown)'}`);
+      if (p.helper) add('servicios', `helper:${n} ${p.name}`, p.helper, `${n} ${p.short} reenvía el DHCP a ${p.helper} (ip helper-address)`);
+      p.subs.forEach(s => add('vlan', `sub:${n} ${p.name}.${s.id}`, `${s.vlan} ${s.ip}/${s.mask}`, `${n} ${p.short}.${s.id}: VLAN ${s.vlan}, IP ${s.ip}`));
+      if (hasSvi(d) && isL2Port(p) && (p.mode === 'trunk' || p.vlan !== 1)) add('vlan', `port:${n} ${p.name}`, p.mode === 'trunk' ? 'trunk' : `access ${p.vlan}`, `${n} ${p.short} ${p.mode === 'trunk' ? 'es troncal' : 'está en la VLAN ' + p.vlan}`);
+      if (d.kind === 'l3switch' && p.routed) add('ip', `routed:${n} ${p.name}`, 'routed', `${n} ${p.short} es un puerto enrutado (no switchport)`);
+    });
+    if (hasSvi(d)) {
+      Object.entries(d.svis).forEach(([v, o]) => { if (o.ip) add('ip', `svi:${n} ${v}`, `${o.ip}/${o.mask}`, `${n} Vlan${v} tiene la IP ${o.ip}`); if (o.helper) add('servicios', `svihelper:${n} ${v}`, o.helper, `${n} Vlan${v} reenvía el DHCP a ${o.helper}`); });
+      d.vlans.forEach((name, v) => { if (v !== 1) add('vlan', `vlan:${n} ${v}`, name, `${n} tiene la VLAN ${v} (${name})`); });
+      if (d.stpPriority !== 32768) add('vlan', `stp:${n}`, d.stpPriority, `${n} tiene prioridad STP ${d.stpPriority}`);
+      if (d.defaultGw) add('ip', `dgw:${n}`, d.defaultGw, `${n} usa ip default-gateway ${d.defaultGw}`);
+    }
+    d.routes.forEach(r => add('rutas', `route:${n} ${r.net}/${r.mask}`, r.via, `${n} tiene la ruta ${r.net} ${r.mask} vía ${r.via}`));
+    if (d.services) {
+      const s = d.services;
+      if (s.dhcp.on) add('servicios', `dhcp:${n}`, `${s.dhcp.start} ${s.dhcp.max} ${s.dhcp.mask} ${s.dhcp.gw} ${s.dhcp.dns}`, `${n} da DHCP desde ${s.dhcp.start} (puerta ${s.dhcp.gw || '—'}, DNS ${s.dhcp.dns || '—'})`);
+      if (s.dns.on) add('servicios', `dnson:${n}`, 'on', `${n} tiene el servicio DNS activo`);
+      s.dns.records.forEach(r => add('servicios', `rr:${n} ${r.name} ${r.type}`, r.value, `${n} resuelve ${r.name} (${r.type} ${r.value})`));
+      add('servicios', `http:${n}`, s.http.on ? 'on' : 'off', `${n} tiene el HTTP ${s.http.on ? 'activo' : 'apagado'}`);
+    }
+    if (d.ios) {
+      d.ios.dhcp.pools.forEach(p => add('servicios', `pool:${n} ${p.name}`, `${p.net}/${p.mask} ${p.gw} ${p.dns}`, `${n} tiene el pool DHCP ${p.name} (${p.net}, puerta ${p.gw || '—'})`));
+      d.ios.dhcp.excluded.forEach(([a, b]) => add('servicios', `excl:${n} ${a}`, b || a, `${n} excluye del DHCP ${a}${b ? '-' + b : ''}`));
+      if (d.ios.enableSecret) add('seguridad', `secret:${n}`, d.ios.enableSecret, `${n} tiene enable secret`);
+      if (d.ios.conPass) add('seguridad', `con:${n}`, `${d.ios.conPass} ${d.ios.conLogin}`, `${n} pide contraseña en la consola`);
+      if (d.ios.encrypt) add('seguridad', `enc:${n}`, 'on', `${n} cifra las contraseñas (service password-encryption)`);
+    }
+    if (d.wifi && (d.kind === 'ap' || d.wifi.ssid !== 'Default' || d.wifi.sec !== 'open'))
+      add('wifi', `wifi:${n}`, `${d.wifi.ssid} ${d.wifi.sec} ${d.wifi.key}${d.kind === 'ap' ? ' ' + d.wifi.channel : ''}`, `${n}: red «${d.wifi.ssid}», ${WIFI_SEC[d.wifi.sec]}${d.kind === 'ap' ? ', canal ' + d.wifi.channel : ''}`);
+  });
+  links.forEach(l => {
+    const [a, b] = [`${l.a.device.name} ${l.a.short}`, `${l.b.device.name} ${l.b.short}`].sort();
+    add('cables', `link:${a}|${b}`, l.type, `Cable ${CABLES[l.type].label.toLowerCase()} entre ${a} y ${b}`);
+  });
+  return F;
+}
+function showActivity() {
+  $('#actPanel').hidden = !activity;
+  if (!activity) return;
+  $('#actTitle').textContent = activity.title || 'Actividad';
+  $('#actText').textContent = activity.text || '';
+  $('#actResult').innerHTML = '';
+  $('#actStatus').textContent = `${activity.checks.length + activity.pings.length} comprobaciones`;
+}
+$('#actMin').addEventListener('click', e => {
+  const min = $('#actPanel').classList.toggle('min');
+  e.currentTarget.textContent = min ? '+' : '–';
+});
+async function checkActivity() {
+  const btn = $('#actCheck');
+  btn.disabled = true;
+  const now = facts();
+  const res = activity.checks.map(c => ({ cat: c.cat, label: c.label, ok: now.get(c.k)?.v === c.v }));
+  if (activity.pings.length) {
+    if (sim.mode === 'sim') setSimMode('realtime');
+    $('#actStatus').textContent = 'Probando la conectividad…';
+    for (const [src, dst] of activity.pings) {
+      const s = devices.find(x => x.name === src), t = devices.find(x => x.name === dst);
+      const dip = IPRE.test(dst) ? dst : t && s ? pingTarget(s, t) : '';
+      let ok = false;
+      if (s?.def.host && s.ip && dip) { const r = await pingIp(s, dip); ok = !r.timeout && r.type === 0; }
+      res.push({ cat: 'ping', label: `Ping de ${src} a ${dst}`, ok });
+    }
+  }
+  const okN = res.filter(r => r.ok).length, pct = res.length ? Math.round(okN / res.length * 100) : 0;
+  const cats = [...new Set(res.map(r => r.cat))];
+  $('#actResult').innerHTML = `<div class="score">${pct} %</div><div class="bar"><i style="width:${pct}%"></i></div>
+    <div class="note">${okN} de ${res.length} comprobaciones correctas</div>` +
+    cats.map(c => {
+      const rr = res.filter(r => r.cat === c), k = rr.filter(r => r.ok).length;
+      return `<div class="res ${k === rr.length ? 'ok' : 'ko'}"><span class="k">${k === rr.length ? '✓' : '✗'}</span><span><b>${ACT_CATS[c]}</b>: ${k}/${rr.length}</span></div>` +
+        (activity.details ? rr.map(r => `<div class="res ${r.ok ? 'ok' : 'ko'}" style="padding-left:14px"><span class="k">${r.ok ? '✓' : '✗'}</span><span>${esc(r.label)}</span></div>`).join('') : '');
+    }).join('');
+  $('#actStatus').textContent = `Comprobado a las ${new Date().toLocaleTimeString('es-ES')}`;
+  log(`Actividad «${activity.title}»: ${pct} % (${okN}/${res.length})`, pct === 100 ? 'ok' : 'info');
+  btn.disabled = false;
+}
+$('#actCheck').addEventListener('click', () => checkActivity());
+
+// Editor de la actividad (profesorado)
+$('#aCats').innerHTML = Object.entries(ACT_CATS).filter(([k]) => k !== 'ping').map(([k, v]) =>
+  `<label class="chk"><input type="checkbox" data-acat="${k}"${k === 'seguridad' ? '' : ' checked'}>${v}</label>`).join('');
+$('#btnActivity').addEventListener('click', () => {
+  $('#aTitle').value = activity?.title || '';
+  $('#aText').value = activity?.text || '';
+  $('#aDetails').checked = activity ? !!activity.details : true;
+  $('#aPings').value = (activity?.pings || []).map(p => p.join(' ')).join('\n');
+  actDraft = activity ? { checks: activity.checks } : null;
+  $('#aCaptured').textContent = actDraft ? `Solución actual: ${actDraft.checks.length} comprobaciones.` : 'Sin capturar.';
+  $('#aErr').textContent = '';
+  $('#aRemove').hidden = !activity;
+  $('#actBg').hidden = false;
+});
+$('#aCapture').addEventListener('click', () => {
+  const cats = new Set([...document.querySelectorAll('[data-acat]:checked')].map(c => c.dataset.acat));
+  const checks = [...facts()].filter(([, f]) => cats.has(f.cat)).map(([k, f]) => ({ k, v: f.v, label: f.label, cat: f.cat }));
+  actDraft = { checks };
+  const per = [...cats].map(c => `${ACT_CATS[c]} ${checks.filter(x => x.cat === c).length}`).join(' · ');
+  $('#aCaptured').textContent = `Capturadas ${checks.length} comprobaciones (${per}). Ahora deja la red en su estado inicial y guarda.`;
+});
+$('#aCancel').addEventListener('click', () => { $('#actBg').hidden = true; });
+$('#aRemove').addEventListener('click', () => { activity = null; showActivity(); $('#actBg').hidden = true; log('Actividad quitada: la red queda como una red normal'); });
+$('#actForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const fail = m => { $('#aErr').textContent = m; };
+  if (!actDraft) return fail('Primero monta la red resuelta y pulsa «Capturar la solución».');
+  const title = $('#aTitle').value.trim();
+  if (!title) return fail('Ponle un título a la actividad.');
+  const pings = [];
+  for (const raw of $('#aPings').value.split('\n')) {
+    const t = raw.trim();
+    if (!t) continue;
+    const [a, b] = t.split(/\s+/);
+    if (!a || !b) return fail(`Prueba de ping no válida: «${t}» (origen destino).`);
+    pings.push([a, b]);
+  }
+  activity = { title, text: $('#aText').value.trim(), details: $('#aDetails').checked, checks: actDraft.checks, pings };
+  showActivity();
+  saveFile();
+  $('#actBg').hidden = true;
+});
 
 function buildDemo() {
   const V = (x, z) => new THREE.Vector3(x, 0, z);

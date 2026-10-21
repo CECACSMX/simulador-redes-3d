@@ -9,6 +9,7 @@ Simulador de redes en 3D para el ciclo SMX: equipos, cableado con validación de
   DHCP en el router, ip helper-address, contraseñas, show running-config…
 - VLAN, troncales 802.1Q, router-on-a-stick, SVI en el switch de capa 3 y Spanning Tree.
 - Wi-Fi con SSID, seguridad abierta/WEP/WPA2-PSK, 4-way handshake e interferencia cocanal.
+- Guardar y abrir la red (.json), notas sobre el plano y modo actividad con autocorrección.
 
 **Abrir:** https://cecacsmx.github.io/simulador-redes-3d/ (se puede instalar como aplicación y funciona sin conexión).
 
