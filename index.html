@@ -199,6 +199,7 @@ body.lbl-names .devlabel small,body.lbl-none .devlabel,body.lbl-none .iflabel{di
     <button id="btnFit" title="Encuadra todos los equipos">Encuadrar</button>
     <button id="btnTop" title="Cambia entre vista cenital y 3D">Cenital</button>
     <button id="btnLabels" title="Etiquetas: completas, solo nombres u ocultas">Etiquetas: todas</button>
+    <button id="btnPeople" title="Muestra u oculta los usuarios y técnicos (y sus mesas)">Personas: sí</button>
     <button data-mode="note" title="Coloca una nota sobre el plano">Nota</button>
   </div>
   <div class="group"><span class="gt">Escena</span>
@@ -323,6 +324,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { OBJExporter } from 'three/addons/exporters/OBJExporter.js';
 import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 /* ---------- Constantes ---------- */
 const $ = s => document.querySelector(s);
@@ -575,7 +578,23 @@ function buildServer() {
   g.add(mesh(new THREE.BoxGeometry(0.7, 0.35, 0.04), M(0x2a313a), 0, 0.3, 0.61));
   return g;
 }
-function buildLaptop() {
+// Mesa de trabajo: aparece bajo el PC y el portátil cuando hay una persona sentada delante
+const DESK_H = 0.7;
+function buildDesk(w = 2.6, d = 1.3) {
+  const g = new THREE.Group(), top = M(0xc8a27a, { roughness: 0.8 }), leg = M(0x64748b, { metalness: 0.4 });
+  g.add(mesh(new THREE.BoxGeometry(w, 0.07, d), top, 0, DESK_H - 0.035, 0));
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) =>
+    g.add(mesh(new THREE.BoxGeometry(0.07, DESK_H - 0.07, 0.07), leg, sx * (w / 2 - 0.08), (DESK_H - 0.07) / 2, sz * (d / 2 - 0.08))));
+  return g;
+}
+function buildLaptop(opt = {}) {
+  if (opt.desk) {
+    const g = new THREE.Group(), lap = buildLaptop();
+    lap.position.set(0, DESK_H, -0.05);
+    lap.scale.setScalar(0.8);
+    g.add(buildDesk(), lap);
+    return g;
+  }
   const g = new THREE.Group();
   const shell = M(0x4a5563);
   g.add(mesh(new THREE.BoxGeometry(1.5, 0.08, 1.0), shell, 0, 0.04, 0));
@@ -616,15 +635,17 @@ function buildAP() {
   antenna(g, 0, 0.3, -0.7, 0.9);
   return g;
 }
-function buildPC() {
+// Con mesa, el monitor y el teclado suben al tablero y la torre queda en el suelo, junto a la mesa
+function buildPC(opt = {}) {
   const g = new THREE.Group();
-  const body = M(0x22303f);
-  g.add(mesh(new THREE.BoxGeometry(1.7, 1.05, 0.1), body, 0, 1.25, 0));
-  g.add(mesh(new THREE.PlaneGeometry(1.5, 0.85), M(0x3d8fe0, { emissive: 0x1a4f8a, emissiveIntensity: 0.6 }), 0, 1.25, 0.056));
-  g.add(mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), body, 0, 0.4, -0.05));
-  g.add(mesh(new THREE.BoxGeometry(0.7, 0.06, 0.45), body, 0, 0.03, -0.05));
-  g.add(mesh(new THREE.BoxGeometry(0.5, 1.05, 1.0), M(0x2a3644), 1.35, 0.525, 0));
-  g.add(mesh(new THREE.BoxGeometry(1.2, 0.05, 0.4), M(0x3a4654), 0, 0.025, 0.7));
+  const body = M(0x22303f), y = opt.desk ? DESK_H : 0;
+  g.add(mesh(new THREE.BoxGeometry(1.7, 1.05, 0.1), body, 0, 1.25 + y, 0));
+  g.add(mesh(new THREE.PlaneGeometry(1.5, 0.85), M(0x3d8fe0, { emissive: 0x1a4f8a, emissiveIntensity: 0.6 }), 0, 1.25 + y, 0.056));
+  g.add(mesh(new THREE.BoxGeometry(0.12, 0.7, 0.12), body, 0, 0.4 + y, -0.05));
+  g.add(mesh(new THREE.BoxGeometry(0.7, 0.06, 0.45), body, 0, 0.03 + y, -0.05));
+  g.add(mesh(new THREE.BoxGeometry(0.5, 1.05, 1.0), M(0x2a3644), opt.desk ? 1.65 : 1.35, 0.525, 0));
+  g.add(mesh(new THREE.BoxGeometry(1.2, 0.05, 0.4), M(0x3a4654), 0, 0.025 + y, opt.desk ? 0.45 : 0.7));
+  if (opt.desk) g.add(buildDesk());
   return g;
 }
 const BUILDERS = { router: buildRouter, switch: buildSwitch, l3switch: buildL3Switch, ap: buildAP, pc: buildPC,
@@ -769,11 +790,16 @@ class Device {
     wrap.add(obj);
     this.setVisual(wrap);
     this.custom = true;
+    this.onDesk = false;
+    refreshPeople(this);
     refreshLinksOf(this);
   }
   resetVisual() {
     this.setVisual(BUILDERS[this.kind]());
     this.custom = false;
+    this.onDesk = false;
+    this.peopleSig = null;
+    refreshPeople(this);
   }
   dispose() {
     this.label.removeFromParent();
@@ -941,6 +967,7 @@ function defaultServices(name) {
 function addDevice(kind, pos, silent = false) {
   const d = new Device(kind, pos);
   devices.push(d);
+  refreshPeople(d);
   if (!silent) { log(`Equipo añadido: ${d.name} (${d.def.label})`); updateWireless(); }
   return d;
 }
@@ -953,6 +980,7 @@ function removeDevice(d, silent = false) {
   if (term && (term.dev === d || term.host === d)) closeTerm();
   if (svcTarget === d) closeSvc();
   cancelDhcp(d);
+  if (d.peopleMixer) peopleMixers.delete(d.peopleMixer);
   d.dispose();
   devices.splice(devices.indexOf(d), 1);
   assoc.delete(d);
@@ -966,7 +994,106 @@ function refreshLinksOf(d) {
 function rebuildAll() {
   computeStp();
   links.forEach(l => l.rebuild());
+  refreshAllPeople();   // un cable de consola nuevo convierte al usuario de ese PC en técnico
 }
+
+/* ---------- Personas: usuarios y técnicos (Kenney Mini Characters y Furniture Kit, CC0) ---------- */
+const PEOPLE_USERS = ['character-male-a', 'character-female-b', 'character-male-d', 'character-female-d', 'character-male-f', 'character-female-f'];
+const PEOPLE_TECH = 'character-male-e';
+const PEOPLE_SCALE = 2.1;
+const peopleAssets = { ready: false, chars: {}, chair: null, glasses: null };
+const peopleMixers = new Set();
+let peopleOn = true;
+try { peopleOn = localStorage.getItem('simulador-redes-smx:personas') !== 'no'; } catch { /* sin almacenamiento local */ }
+async function loadPeople() {
+  const loader = new GLTFLoader(), names = [...PEOPLE_USERS, PEOPLE_TECH];
+  const [chair, glasses, ...chars] = await Promise.all([loader.loadAsync('./modelos/chairDesk.glb'), loader.loadAsync('./modelos/personas/aid-glasses.glb'),
+    ...names.map(n => loader.loadAsync(`./modelos/personas/${n}.glb`))]);
+  // silla de oficina centrada en su origen y repintada: asiento gris azulado, patas metálicas
+  const src = chair.scene, c = new THREE.Box3().setFromObject(src).getCenter(new THREE.Vector3());
+  src.position.set(-c.x, 0, -c.z);
+  const seat = M(0x334155, { roughness: 0.7 }), metal = M(0x94a3b8, { metalness: 0.5, roughness: 0.4 });
+  src.traverse(o => { if (o.isMesh) { o.material = o.material.color.r > 0.6 && o.material.color.g < 0.6 ? seat : metal; o.castShadow = o.receiveShadow = true; } });
+  peopleAssets.chair = src;
+  peopleAssets.glasses = glasses.scene;
+  names.forEach((n, i) => { peopleAssets.chars[n] = chars[i]; });
+  peopleAssets.ready = true;
+  refreshAllPeople();
+}
+// Auriculares con micrófono del técnico
+function buildHeadset() {
+  const g = new THREE.Group(), dark = M(0x1f2937), cup = M(0x374151);
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.02, 8, 24, Math.PI), dark);
+  band.position.y = 0.06;
+  g.add(band);
+  [-0.19, 0.19].forEach(x => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.05, 16), cup); m.rotation.z = Math.PI / 2; m.position.x = x; g.add(m); });
+  const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.22, 8), dark);
+  boom.rotation.set(Math.PI / 2, 0, -0.35);
+  boom.position.set(0.17, -0.05, 0.11);
+  const mic = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), M(0x111827));
+  mic.position.set(0.13, -0.07, 0.22);
+  g.add(boom, mic);
+  g.scale.setScalar(0.95);
+  g.position.y = 0.17;
+  return g;
+}
+function buildPerson(name, seated, tech) {
+  const gltf = peopleAssets.chars[name], obj = SkeletonUtils.clone(gltf.scene);
+  obj.traverse(o => { if (o.isMesh) o.castShadow = o.receiveShadow = true; });
+  const mixer = new THREE.AnimationMixer(obj);
+  mixer.clipAction(THREE.AnimationClip.findByName(gltf.animations, seated ? 'drive' : 'interact-right')).play();
+  mixer.setTime(seated ? 0.6 : 0.3);   // sentado: postura fija con las manos al teclado; de pie: se anima
+  if (tech) {
+    let head = null;
+    obj.traverse(o => { if (!head && /head/i.test(o.name)) head = o; });
+    if (head) head.add(buildHeadset(), peopleAssets.glasses.clone());
+  }
+  const w = new THREE.Group();
+  w.add(obj);
+  w.scale.setScalar(PEOPLE_SCALE);
+  return { obj: w, mixer: seated ? null : mixer };
+}
+// Usuario en cada PC y portátil; técnico sentado en el que tiene cable de consola y de pie junto a cada servidor
+function personRole(d) {
+  if (!peopleOn || !peopleAssets.ready || d.custom) return '';
+  if (d.kind === 'pc' || d.kind === 'laptop') return consoleTarget(d) ? 'tech' : 'user';
+  return d.kind === 'server' ? 'tech-standing' : '';
+}
+const nameHash = s => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+function refreshPeople(d) {
+  const role = personRole(d);
+  if (d.peopleSig === role) return;
+  d.peopleSig = role;
+  if (d.people) { d.group.remove(d.people); d.people = null; }
+  if (d.peopleMixer) { peopleMixers.delete(d.peopleMixer); d.peopleMixer = null; }
+  const seated = role === 'user' || role === 'tech';
+  if ((d.kind === 'pc' || d.kind === 'laptop') && !d.custom && !!d.onDesk !== seated) {
+    d.onDesk = seated;
+    d.setVisual(BUILDERS[d.kind]({ desk: seated }));
+    refreshLinksOf(d);
+  }
+  if (!role) return;
+  const g = new THREE.Group();
+  const p = buildPerson(role === 'user' ? PEOPLE_USERS[nameHash(d.name) % PEOPLE_USERS.length] : PEOPLE_TECH, seated, role !== 'user');
+  if (seated) {
+    const chair = new THREE.Group();
+    chair.add(peopleAssets.chair.clone());
+    chair.scale.setScalar(PEOPLE_SCALE * 0.95);
+    chair.position.set(0, 0, 1.2);
+    chair.rotation.y = Math.PI;
+    p.obj.position.set(0, 0.55, 1.15);
+    p.obj.rotation.y = Math.PI;
+    g.add(chair);
+  } else {
+    p.obj.position.set(0.55, 0, 1.25);
+    p.obj.rotation.y = Math.PI + 0.35;
+  }
+  g.add(p.obj);
+  d.people = g;
+  d.group.add(g);
+  if (p.mixer) { d.peopleMixer = p.mixer; peopleMixers.add(p.mixer); }
+}
+function refreshAllPeople() { devices.forEach(refreshPeople); }
 function addLink(type, a, b, silent = false) {
   const l = new Link(type, a, b);
   links.push(l);
@@ -3685,6 +3812,20 @@ $('#btnLabels').addEventListener('click', e => {
   if (LABEL_MODES[labelMode][0]) document.body.classList.add(LABEL_MODES[labelMode][0]);
   e.currentTarget.textContent = `Etiquetas: ${LABEL_MODES[labelMode][1]}`;
 });
+const btnPeople = $('#btnPeople');
+const syncPeopleBtn = () => { btnPeople.textContent = `Personas: ${peopleOn ? 'sí' : 'no'}`; };
+syncPeopleBtn();
+btnPeople.addEventListener('click', () => {
+  peopleOn = !peopleOn;
+  try { localStorage.setItem('simulador-redes-smx:personas', peopleOn ? 'si' : 'no'); } catch { /* sin almacenamiento local */ }
+  syncPeopleBtn();
+  refreshAllPeople();
+});
+loadPeople().catch(() => {
+  btnPeople.disabled = true;
+  btnPeople.title = 'Los modelos de las personas solo se cargan si el simulador se abre desde un servidor web';
+  log('Las personas (usuarios y técnicos) no se han cargado: los modelos 3D necesitan abrir el simulador desde un servidor web, no con doble clic.', 'warn');
+});
 // Los paneles flotantes empiezan debajo de la barra, que crece al estrecharse la ventana
 new ResizeObserver(() => document.documentElement.style.setProperty('--tb', $('#toolbar').offsetHeight + 'px')).observe($('#toolbar'));
 $('#logClear').addEventListener('click', () => logBody.innerHTML = '');
@@ -4112,6 +4253,7 @@ renderer.setAnimationLoop(() => {
   const dt = Math.min(clock.getDelta(), 0.25);
   controls.update();
   animators.forEach(f => f(dt));
+  peopleMixers.forEach(m => m.update(dt));
   renderer.render(scene, camera);
   labelRenderer.render(scene, camera);
 });

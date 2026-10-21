@@ -1,5 +1,5 @@
 // Generado por publicar.py: no editar a mano
-const CACHE = 'redes3d-54082a3ed8bb';
+const CACHE = 'redes3d-50702e15b50d';
 const ARCHIVOS = [
   "./",
   "iconos/icono-192.png",
@@ -7,11 +7,27 @@ const ARCHIVOS = [
   "iconos/icono-maskable-512.png",
   "index.html",
   "manifest.webmanifest",
+  "modelos/CREDITOS.md",
+  "modelos/License-Kenney-Furniture-Kit.txt",
+  "modelos/chairDesk.glb",
+  "modelos/personas/License-Kenney-Mini-Characters.txt",
+  "modelos/personas/Textures/colormap.png",
+  "modelos/personas/aid-glasses.glb",
+  "modelos/personas/character-female-b.glb",
+  "modelos/personas/character-female-d.glb",
+  "modelos/personas/character-female-f.glb",
+  "modelos/personas/character-male-a.glb",
+  "modelos/personas/character-male-d.glb",
+  "modelos/personas/character-male-e.glb",
+  "modelos/personas/character-male-f.glb",
   "vendor/three/LICENSE",
   "vendor/three/addons/controls/OrbitControls.js",
   "vendor/three/addons/exporters/OBJExporter.js",
+  "vendor/three/addons/loaders/GLTFLoader.js",
   "vendor/three/addons/loaders/OBJLoader.js",
   "vendor/three/addons/renderers/CSS2DRenderer.js",
+  "vendor/three/addons/utils/BufferGeometryUtils.js",
+  "vendor/three/addons/utils/SkeletonUtils.js",
   "vendor/three/three.module.js"
 ];
 

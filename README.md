@@ -21,7 +21,8 @@ Este repositorio solo contiene la versión publicada; se genera con `publicar.py
 revisión del autor. Publicado con licencia MIT (ver `LICENSE`): se puede usar, copiar,
 modificar y redistribuir libremente siempre que se conserve el aviso de autoría.
 
-Incluye Three.js 0.160 (licencia MIT, ver `vendor/three/LICENSE`).
+Incluye Three.js 0.160 (licencia MIT, ver `vendor/three/LICENSE`) y figuras de personas y silla
+de oficina de Kenney (CC0, ver `modelos/CREDITOS.md`).
 
 ## Aviso
 
