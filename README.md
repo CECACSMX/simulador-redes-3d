@@ -8,6 +8,7 @@ Simulador de redes en 3D para el ciclo SMX: equipos, cableado con validación de
 - CLI de Cisco IOS en routers y switches (también por cable de consola): interfaces, rutas,
   DHCP en el router, ip helper-address, contraseñas, show running-config…
 - VLAN, troncales 802.1Q, router-on-a-stick, SVI en el switch de capa 3 y Spanning Tree.
+- Wi-Fi con SSID, seguridad abierta/WEP/WPA2-PSK, 4-way handshake e interferencia cocanal.
 
 **Abrir:** https://cecacsmx.github.io/simulador-redes-3d/ (se puede instalar como aplicación y funciona sin conexión).
 

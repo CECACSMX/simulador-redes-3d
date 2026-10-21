@@ -191,6 +191,7 @@ body.sim #props{max-height:calc(58vh - 130px)}
     <label class="chk"><input type="checkbox" data-filter="DNS" checked>DNS</label>
     <label class="chk"><input type="checkbox" data-filter="TCP" checked>TCP</label>
     <label class="chk"><input type="checkbox" data-filter="HTTP" checked>HTTP</label>
+    <label class="chk"><input type="checkbox" data-filter="WLAN" checked>Wi-Fi</label>
   </div>
   <div id="evWrap"><table><thead><tr><th></th><th>Tiempo</th><th>Último equipo</th><th>En equipo</th><th>Tipo</th></tr></thead><tbody id="evBody"></tbody></table></div>
 </div>
@@ -283,6 +284,7 @@ function cableRole(l) {
   return 'backbone2';
 }
 const PORT_TYPES = { copper: 'RJ-45 cobre', fiber: 'Fibra SFP', console: 'Consola RJ-45', rs232: 'RS-232', wireless: 'Inalámbrica (lógica)' };
+const WIFI_SEC = { open: 'abierta', wep: 'WEP', wpa2: 'WPA2-PSK' };
 
 // mdi: true = MDI (router, equipos finales, AP), false = MDI-X (switches)
 // l3: enruta entre subredes · host: equipo final, no reenvía · wifi: se asocia al AP · passive: patch panel
@@ -588,6 +590,9 @@ class Device {
     this.vlans = new Map([[1, 'default']]);
     this.stpOn = true;
     this.stpPriority = 32768;
+    // Wi-Fi: el AP anuncia su red; los equipos con tarjeta inalámbrica se unen a la que coincide en SSID y clave
+    if (kind === 'ap') this.wifi = { ssid: 'Default', sec: 'open', key: '', channel: 6 };
+    else if (this.def.wifi) this.wifi = { ssid: 'Default', sec: 'open', key: '' };
     this.custom = false;
     this.ports = this.def.ports.map(([n, s, t, h]) => new Port(this, n, s, t, !!h));
     // Equipos con IOS: configuración de la CLI; las interfaces de un router nuevo vienen apagadas, como en Cisco
@@ -646,6 +651,7 @@ class Device {
   updateLabel() {
     this.visual.name = this.name;
     const lines = ifacesOf(this).slice(0, 3).map(i => (isL3(this) ? i.short + ' ' : '') + `${i.ip}/${maskBits(i.mask)}`);
+    if (this.kind === 'ap') lines.push(`«${this.wifi.ssid}» · ${WIFI_SEC[this.wifi.sec]} · canal ${this.wifi.channel}`);
     this.labelEl.innerHTML = `<b>${esc(this.name)}</b>` + lines.map(l => `<br><small>${esc(l)}</small>`).join('');
   }
   async loadCustomOBJ(urlOrFile) {
@@ -915,27 +921,93 @@ function removeLink(l, silent = false) {
   }
 }
 
-let assoc = new Map();
+let assoc = new Map(), wfail = new Map(), cochannel = new Set();
+// Por qué no se une un cliente a un AP de su mismo SSID (null = puede unirse)
+function wifiMismatch(ap, pc) {
+  const a = ap.wifi, c = pc.wifi;
+  if (a.sec !== c.sec) return `el AP usa seguridad ${WIFI_SEC[a.sec]} y el equipo está configurado como ${WIFI_SEC[c.sec]}`;
+  if (a.sec !== 'open' && a.key !== c.key) return `la clave ${WIFI_SEC[a.sec]} no coincide`;
+  return null;
+}
 function updateWireless() {
   wlinks.forEach(l => l.destroy());
   wlinks = [];
   const aps = devices.filter(d => d.kind === 'ap');
-  const next = new Map();
+  const next = new Map(), fails = new Map();
   for (const pc of devices.filter(d => d.def.wifi)) {
     if (pc.ports.find(p => p.type === 'copper').link) continue;
+    // el AP más cercano en cobertura que anuncia la red configurada en el equipo
     let best = null, bd = Infinity;
     for (const ap of aps) {
       const dd = distXZ(ap.pos, pc.pos);
-      if (dd <= WIFI_RANGE && dd < bd) { bd = dd; best = ap; }
+      if (dd <= WIFI_RANGE && ap.wifi.ssid === pc.wifi.ssid && dd < bd) { bd = dd; best = ap; }
     }
-    if (best) {
-      wlinks.push(new Link('wireless', best.port('Wireless0'), pc.port('Wireless0')));
-      next.set(pc, best);
-    }
+    if (!best) continue;
+    const why = wifiMismatch(best, pc);
+    if (why) { fails.set(pc, { ap: best, why }); continue; }
+    wlinks.push(new Link('wireless', best.port('Wireless0'), pc.port('Wireless0')));
+    next.set(pc, best);
   }
-  for (const [pc, ap] of next) if (assoc.get(pc) !== ap) log(`${pc.name} asociado por radiofrecuencia a ${ap.name} (Wireless0)`);
-  for (const [pc, ap] of assoc) if (!next.has(pc) && devices.includes(pc)) log(`${pc.name} se desasocia de ${ap.name} (fuera de cobertura o con cable)`, 'warn');
+  for (const [pc, ap] of next) if (assoc.get(pc) !== ap) {
+    log(`${pc.name} se une a «${ap.wifi.ssid}» en ${ap.name} (${WIFI_SEC[ap.wifi.sec]}${ap.wifi.sec === 'wpa2' ? ', cifrado AES-CCMP' : ap.wifi.sec === 'open' ? ', sin cifrar' : ''})`);
+    wifiHandshake(ap, pc, true);
+  }
+  for (const [pc, ap] of assoc) if (!next.has(pc) && devices.includes(pc)) log(`${pc.name} se desasocia de ${ap.name} (fuera de cobertura, con cable o con otra configuración Wi-Fi)`, 'warn');
+  for (const [pc, f] of fails) if (wfail.get(pc)?.why !== f.why || wfail.get(pc)?.ap !== f.ap) {
+    log(`${pc.name} no puede unirse a «${f.ap.wifi.ssid}» en ${f.ap.name}: ${f.why}.`, 'err');
+    wifiHandshake(f.ap, pc, false);
+  }
   assoc = next;
+  wfail = fails;
+  // dos AP cuyas coberturas se solapan en el mismo canal se interfieren
+  const now = new Set();
+  aps.forEach((a, i) => aps.slice(i + 1).forEach(b => {
+    if (a.wifi.channel === b.wifi.channel && distXZ(a.pos, b.pos) < WIFI_RANGE * 2) now.add(`${a.name}|${b.name}|${a.wifi.channel}`);
+  }));
+  now.forEach(k => { if (!cochannel.has(k)) { const [a, b, ch] = k.split('|'); log(`Interferencia cocanal: ${a} y ${b} se solapan en el canal ${ch}. Usa canales que no se pisen (1, 6 y 11).`, 'warn'); } });
+  cochannel = now;
+  if (selected) renderProps();
+}
+
+// Tramas 802.11 de la asociación: van una tras otra (cada llegada envía la siguiente) y no cambian el estado de la red
+function wifiHandshake(ap, pc, ok) {
+  const sec = ap.wifi.sec;
+  let seq;
+  if (sec === 'wep') seq = ok
+    ? [['c', 'Authentication (clave compartida)'], ['a', 'Authentication: aceptada'], ['c', 'Association Request'], ['a', 'Association Response']]
+    : [['c', 'Authentication (clave compartida)'], ['a', 'Authentication: rechazada']];
+  else {
+    seq = [['c', 'Authentication'], ['a', 'Authentication: aceptada'], ['c', 'Association Request'], ['a', 'Association Response']];
+    if (sec === 'wpa2') seq.push(...(ok ? [['a', 'EAPOL-Key 1/4'], ['c', 'EAPOL-Key 2/4'], ['a', 'EAPOL-Key 3/4'], ['c', 'EAPOL-Key 4/4']]
+      : [['a', 'EAPOL-Key 1/4'], ['c', 'EAPOL-Key 2/4'], ['a', 'Deauthentication']]));
+  }
+  wlanSend(ap, pc, seq, ok);
+  runEngine();
+}
+function wlanSend(ap, pc, seq, ok) {
+  const [who, kind] = seq[0], A = ap.port('Wireless0'), C = pc.port('Wireless0');
+  const [from, to] = who === 'a' ? [A, C] : [C, A];
+  const top = d => new THREE.Vector3(d.pos.x, 1.2, d.pos.z);
+  sim.pending.push({ from, to, segs: [], points: [top(from.device), top(to.device)],
+    frame: { type: 'WLAN', src: from.mac, dst: to.mac, wlan: { kind, ssid: ap.wifi.ssid, sec: ap.wifi.sec, ok, ap, pc, rest: seq.slice(1) } } });
+}
+function wlanReceive(tx) {
+  const w = tx.frame.wlan;
+  if (!devices.includes(w.ap) || !devices.includes(w.pc)) return 'El equipo ya no existe.';
+  if (w.rest.length) wlanSend(w.ap, w.pc, w.rest, w.ok);
+  return {
+    'Authentication': 'Autenticación de sistema abierto (802.11): el cliente se presenta al AP.',
+    'Authentication (clave compartida)': 'Autenticación WEP de clave compartida: el AP manda un reto y el cliente lo devuelve cifrado con su clave.',
+    'Authentication: aceptada': 'El AP acepta la autenticación.',
+    'Authentication: rechazada': 'El AP rechaza la autenticación: el reto no se cifró con la misma clave WEP.',
+    'Association Request': `El cliente pide unirse a la red «${w.ssid}».`,
+    'Association Response': `El AP acepta la asociación${w.sec === 'wpa2' ? '; falta el 4-way handshake de WPA2 para tener claves.' : w.sec === 'open' ? '. La red es abierta: el tráfico viaja sin cifrar.' : '.'}`,
+    'EAPOL-Key 1/4': 'WPA2: el AP envía un número aleatorio (ANonce).',
+    'EAPOL-Key 2/4': w.ok ? 'El cliente responde con su número (SNonce) y un código MIC calculado con la clave.' : 'El cliente responde con un MIC calculado con su clave… que no es la del AP.',
+    'EAPOL-Key 3/4': 'El MIC es correcto: los dos tienen la misma clave. El AP envía la clave de grupo (GTK).',
+    'EAPOL-Key 4/4': 'Handshake completado: desde ahora el tráfico va cifrado con AES-CCMP.',
+    'Deauthentication': 'El MIC no cuadra (clave incorrecta): el AP expulsa al cliente.'
+  }[w.kind];
 }
 
 /* ---------- Validación de cableado ---------- */
@@ -1180,9 +1252,24 @@ function infoHTML(d) {
       <div class="kv"><span>IP de gestión (Vlan1)</span><b>${d.svi.ip ? d.svi.ip + '/' + maskBits(d.svi.mask) : '—'}</b></div>
       <div class="kv"><span>ip default-gateway</span><b>${d.defaultGw || '—'}</b></div>
       <div class="row wrap"><button data-act="ip">Configurar…</button><button data-act="cli">CLI…</button></div></div>`;
+  } else if (d.kind === 'ap') {
+    const n = wlinks.filter(l => l.a.device === d).length, bad = [...wfail].filter(([, f]) => f.ap === d);
+    h += `<div class="sec"><h4>Red inalámbrica</h4>
+      <div class="kv"><span>SSID</span><b>${esc(d.wifi.ssid)}</b></div>
+      <div class="kv"><span>Seguridad</span><b>${WIFI_SEC[d.wifi.sec]}</b></div>
+      <div class="kv"><span>Canal</span><b>${d.wifi.channel}</b></div>
+      <div class="kv"><span>Clientes asociados</span><b>${n}</b></div>
+      ${bad.map(([pc, f]) => `<span class="note" style="color:var(--bad)">${esc(pc.name)} no puede unirse: ${esc(f.why)}.</span>`).join('')}
+      <button data-act="ip">Configurar Wi-Fi…</button></div>`;
   } else {
     h += `<div class="sec"><span class="note">Equipo de capa 2: reenvía tramas según su tabla MAC y no necesita IP.</span>
       <button data-act="ip">Cambiar nombre…</button></div>`;
+  }
+  if (d.def.wifi) {
+    const ap = assoc.get(d), f = wfail.get(d);
+    h += `<div class="sec"><h4>Wi-Fi</h4>
+      <div class="kv"><span>Red configurada</span><b>«${esc(d.wifi.ssid)}» · ${WIFI_SEC[d.wifi.sec]}</b></div>
+      <div class="kv"><span>Estado</span><b>${ap ? 'conectado a ' + esc(ap.name) : f ? '<span style="color:var(--bad)">error: ' + esc(f.why) + '</span>' : d.ports.find(p => p.type === 'copper').link ? 'sin usar (tiene cable)' : 'sin red en cobertura'}</b></div></div>`;
   }
   if (hasSvi(d)) h += `<div class="sec"><h4>VLAN y STP</h4>
       <div class="kv"><span>VLAN</span><b>${[...d.vlans].map(([v, n]) => `${v} ${esc(n)}`).join(' · ')}</b></div>
@@ -1300,9 +1387,13 @@ function openIP(d) {
       <label>IP de gestión (Vlan1)${inp('fSviIp', d.svi.ip, '192.168.1.2')}</label>
       <label>Máscara${inp('fSviMask', d.svi.mask, '255.255.255.0')}</label>
       <label>Puerta de enlace (ip default-gateway)${inp('fDgw', d.defaultGw, '192.168.1.1')}</label>`;
+  } else if (d.kind === 'ap') {
+    h += `<div class="note">El AP une a la red cableada los equipos inalámbricos que usan su mismo SSID, seguridad y clave.</div>${wifiFields(d.wifi)}
+      <label>Canal (1-13)${inp('fCh', d.wifi.channel, '6')}</label>`;
   } else {
     h += `<div class="note">${d.def.passive ? 'Elemento pasivo: no tiene IP.' : 'Equipo de capa 2: no necesita IP para reenviar tramas.'}</div>`;
   }
+  if (d.def.wifi) h += `<div class="svc"><b>Wi-Fi (Wireless0)</b><span class="note">Se usa cuando el equipo no tiene cable de red: se une al AP más cercano con este SSID.</span>${wifiFields(d.wifi)}</div>`;
   if (hasSvi(d)) {
     const ports = d.ports.map((p, i) => [p, i]).filter(([p]) => isL2Port(p));
     h += `<div class="svc"><b>VLAN y puertos de switch</b>
@@ -1312,12 +1403,25 @@ function openIP(d) {
         `<span>${esc(p.short)}</span><select data-pmode="${i}"><option value="access"${p.mode === 'trunk' ? '' : ' selected'}>Acceso</option><option value="trunk"${p.mode === 'trunk' ? ' selected' : ''}>Troncal</option></select><input type="text" data-pvlan="${i}" value="${p.vlan}">`).join('')}</div>
       <span class="note">Troncal: lleva todas las VLAN etiquetadas (802.1Q), con la 1 como nativa. La VLAN nativa y las permitidas se cambian en la CLI.</span></div>`;
   }
-  $('#fTitle').textContent = d.def.host || isL3(d) || d.kind === 'switch' ? `Configuración IP — ${d.def.label}` : `Nombre — ${d.def.label}`;
+  $('#fTitle').textContent = d.kind === 'ap' ? `Configuración Wi-Fi — ${d.def.label}` : d.def.host || isL3(d) || d.kind === 'switch' ? `Configuración IP — ${d.def.label}` : `Nombre — ${d.def.label}`;
   $('#fBody').innerHTML = h;
   $('#fErr').textContent = '';
   modalBg.hidden = false;
   if (d.def.host) syncIpMode();
   $(d.def.host && d.ipMode !== 'dhcp' ? '#fIp' : d.kind === 'switch' ? '#fSviIp' : '#fName').focus();
+}
+function wifiFields(w) {
+  return `<label>SSID (nombre de la red)<input type="text" id="fSsid" value="${esc(w.ssid)}" maxlength="32"></label>
+    <label>Seguridad<select id="fSec">${Object.entries(WIFI_SEC).map(([k, v]) => `<option value="${k}"${w.sec === k ? ' selected' : ''}>${v}${k === 'wep' ? ' (obsoleta, insegura)' : ''}</option>`).join('')}</select></label>
+    <label>Clave<input type="text" id="fKey" value="${esc(w.key)}" placeholder="WPA2: 8-63 caracteres · WEP: 5 o 13"></label>`;
+}
+// Valida los campos Wi-Fi del formulario; devuelve { ssid, sec, key } o un texto de error
+function readWifi() {
+  const ssid = $('#fSsid').value.trim(), sec = $('#fSec').value, key = $('#fKey').value;
+  if (!ssid || ssid.length > 32) return 'El SSID debe tener entre 1 y 32 caracteres.';
+  if (sec === 'wpa2' && (key.length < 8 || key.length > 63)) return 'La clave WPA2 debe tener entre 8 y 63 caracteres.';
+  if (sec === 'wep' && key.length !== 5 && key.length !== 13) return 'La clave WEP debe tener 5 o 13 caracteres.';
+  return { ssid, sec, key: sec === 'open' ? '' : key };
 }
 // En modo DHCP los campos los rellena el servidor
 function syncIpMode() {
@@ -1341,7 +1445,17 @@ $('#ipForm').addEventListener('submit', e => {
   const checkIp = (ip, mask, what) => !IPRE.test(ip) ? `${what}: dirección IPv4 no válida.`
     : !validMask(mask) ? `${what}: máscara no válida.`
     : taken.has(ip) ? `${what}: la IP ${ip} ya la usa otro equipo.` : null;
-  // VLAN y modo de los puertos (switches): se valida todo antes de aplicar nada
+  // Wi-Fi (AP y equipos con tarjeta inalámbrica) y VLAN de los switches: se valida todo antes de aplicar nada
+  let wifiConf = null;
+  if (d.wifi) {
+    wifiConf = readWifi();
+    if (typeof wifiConf === 'string') return fail(wifiConf);
+    if (d.kind === 'ap') {
+      const ch = Number(val('#fCh'));
+      if (!Number.isInteger(ch) || ch < 1 || ch > 13) return fail('El canal debe estar entre 1 y 13.');
+      wifiConf.channel = ch;
+    }
+  }
   let vlanConf = null;
   if (hasSvi(d)) {
     const vlans = new Map([[1, d.vlans.get(1)]]);
@@ -1417,6 +1531,11 @@ $('#ipForm').addEventListener('submit', e => {
     d.arp.clear();
     log(`${name}: IP de gestión ${ip ? ip + '/' + maskBits(mask) : '(ninguna)'}${gw ? ' · ip default-gateway ' + gw : ''}`);
   }
+  if (wifiConf) {
+    const changed = Object.keys(wifiConf).some(k => d.wifi[k] !== wifiConf[k]);
+    Object.assign(d.wifi, wifiConf);
+    if (changed) log(`${name}: Wi-Fi «${d.wifi.ssid}» · ${WIFI_SEC[d.wifi.sec]}${d.kind === 'ap' ? ' · canal ' + d.wifi.channel : ''}`);
+  }
   if (vlanConf) {
     d.vlans = vlanConf.vlans;
     vlanConf.ports.forEach(({ p, mode, vlan }) => { Object.assign(p, { mode, vlan }); if (mode === 'trunk') p.trunkEnc = 'dot1q'; });
@@ -1426,6 +1545,7 @@ $('#ipForm').addEventListener('submit', e => {
   if (name !== d.name) log(`${d.name} → ${name}`);
   d.name = name;
   d.updateLabel();
+  if (wifiConf) updateWireless();
   closeIP();
   renderProps();
   if (dhcpStart) startDhcp(d);
@@ -2575,15 +2695,15 @@ function animateAlong(points, color, speed = 8) {
 /* ---------- Motor de simulación: tramas Ethernet, ARP e ICMP ---------- */
 const sim = { mode: 'realtime', paused: true, step: false, wake: null, running: false, gen: 0,
   pending: [], time: 0, events: [], pings: new Map(), ops: new Map(), seq: 0, speed: 6,
-  filters: { ARP: true, ICMP: true, DHCP: true, DNS: true, TCP: true, HTTP: true } };
+  filters: { ARP: true, ICMP: true, DHCP: true, DNS: true, TCP: true, HTTP: true, WLAN: true } };
 function pduType(f) {
-  if (f.type === 'ARP') return 'ARP';
+  if (f.type === 'ARP' || f.type === 'WLAN') return f.type;
   const p = f.ip;
   if (p.proto === 'UDP') return p.dhcp ? 'DHCP' : 'DNS';
   if (p.proto === 'TCP') return p.http ? 'HTTP' : 'TCP';
   return 'ICMP';
 }
-const PDU_COLORS = { ARP: 0xf2b705, DHCP: 0x8b5cf6, DNS: 0xe0459b, TCP: 0x64748b, HTTP: 0xe68a00 };
+const PDU_COLORS = { ARP: 0xf2b705, DHCP: 0x8b5cf6, DNS: 0xe0459b, TCP: 0x64748b, HTTP: 0xe68a00, WLAN: 0x16b3c4 };
 const pduColor = f => { const t = pduType(f); return t !== 'ICMP' ? PDU_COLORS[t] : { 8: 0x1f7dff, 0: 0x22c55e }[f.ip.icmp.type] ?? 0xd83a3a; };
 const BCAST_IP = '255.255.255.255';
 const failOp = (x, reason) => { const op = (x.ip || x).op; if (op && !op.reason) op.reason = reason; };
@@ -2616,6 +2736,7 @@ function ipSend(d, pkt) {
 function arrive(tx) {
   const p = tx.to, d = p.device, f = tx.frame;
   if (!devices.includes(d)) return 'El equipo ya no existe.';
+  if (f.type === 'WLAN') return wlanReceive(tx);
   if (hasL2(d) && !p.ip && !p.routed) return l2Receive(d, p, f, tx.from, tx.tag ?? null);
   const tag = tx.tag ?? null;
   if (d.def.host && tag !== null) return `Descartada: llega con etiqueta 802.1Q (VLAN ${tag}) y un equipo final no entiende tramas etiquetadas. ¿El puerto del switch está en modo troncal?`;
@@ -3054,6 +3175,7 @@ function finishIdle() {
 }
 
 function txPoints(tx) {
+  if (tx.points) return tx.points;
   const top = d => new THREE.Vector3(d.pos.x, 0.9, d.pos.z);
   const pts = [top(tx.from.device)];
   tx.segs.forEach(s => {
@@ -3103,7 +3225,8 @@ async function runEngine() {
 const evBody = $('#evBody'), evWrap = $('#evWrap');
 const hex = c => '#' + c.toString(16).padStart(6, '0');
 function addEvent(tx, t) {
-  const ev = { t, last: tx.from.device.name, at: tx.to.device.name, type: pduType(tx.frame), frame: tx.frame, tag: tx.tag ?? null, info: '' };
+  const air = tx.segs?.find(s => s.link.type === 'wireless')?.link.a.device.wifi;
+  const ev = { t, last: tx.from.device.name, at: tx.to.device.name, type: pduType(tx.frame), frame: tx.frame, tag: tx.tag ?? null, air, info: '' };
   tx.ev = ev;
   sim.events.push(ev);
   const tr = document.createElement('tr');
@@ -3168,8 +3291,18 @@ evBody.addEventListener('click', e => {
 const kv = (k, v) => `<div class="kv"><span>${k}</span><code>${v}</code></div>`;
 function showPDU(ev) {
   const f = ev.frame;
-  let h = `<p class="note">Tiempo ${ev.t} · de <b>${esc(ev.last)}</b> a <b>${esc(ev.at)}</b></p>
-    <div class="layer"><b>Capa 2 · Ethernet II</b>${kv('MAC origen', f.src)}${kv('MAC destino', f.dst + (f.dst === BCAST ? ' (difusión)' : ''))}${ev.tag !== null && ev.tag !== undefined ? kv('802.1Q', `TPID 0x8100 · VLAN ${ev.tag}`) : ''}${kv('Tipo', f.type === 'ARP' ? '0x0806 (ARP)' : '0x0800 (IPv4)')}</div>`;
+  let h = `<p class="note">Tiempo ${ev.t} · de <b>${esc(ev.last)}</b> a <b>${esc(ev.at)}</b></p>`;
+  if (f.type === 'WLAN') {
+    const w = f.wlan;
+    h += `<div class="layer"><b>802.11 · Trama de ${w.kind.startsWith('EAPOL') ? 'datos (EAPOL, autenticación WPA2)' : 'gestión'}</b>${kv('Tipo', esc(w.kind))}${kv('Transmisor', f.src)}${kv('Receptor', f.dst)}${kv('SSID', esc(w.ssid))}${kv('Seguridad', WIFI_SEC[w.sec])}</div>
+      <div class="layer res"><b>Qué hace ${esc(ev.at)}</b><div>${esc(ev.info || 'La trama aún está en el aire.')}</div></div>`;
+    $('#pduTitle').textContent = `Trama Wi-Fi en ${ev.at}`;
+    $('#pduBody').innerHTML = h;
+    $('#pduBg').hidden = false;
+    return;
+  }
+  if (ev.air) h += `<div class="layer"><b>Radio 802.11 · «${esc(ev.air.ssid)}»</b>${kv('Cifrado', ev.air.sec === 'wpa2' ? 'AES-CCMP (WPA2): quien escuche el aire no puede leerla' : ev.air.sec === 'wep' ? 'RC4 (WEP): roto, se descifra en minutos' : 'ninguno: red abierta, cualquiera puede leerla')}</div>`;
+  h += `<div class="layer"><b>Capa 2 · Ethernet II</b>${kv('MAC origen', f.src)}${kv('MAC destino', f.dst + (f.dst === BCAST ? ' (difusión)' : ''))}${ev.tag !== null && ev.tag !== undefined ? kv('802.1Q', `TPID 0x8100 · VLAN ${ev.tag}`) : ''}${kv('Tipo', f.type === 'ARP' ? '0x0806 (ARP)' : '0x0800 (IPv4)')}</div>`;
   if (f.type === 'ARP') {
     const a = f.arp;
     h += `<div class="layer"><b>ARP · ${a.op === 1 ? 'Request (¿quién tiene esta IP?)' : 'Reply'}</b>${kv('MAC emisor', a.smac)}${kv('IP emisor', a.sip)}${kv('MAC destino', a.tmac)}${kv('IP destino', a.tip)}</div>`;
@@ -3386,6 +3519,8 @@ function clearAll() {
   wlinks.forEach(l => l.destroy());
   wlinks = [];
   assoc = new Map();
+  wfail = new Map();
+  cochannel = new Set();
   Object.keys(counters).forEach(k => counters[k] = 0);
   select(null);
 }
@@ -3411,6 +3546,8 @@ function buildDemo() {
    [pc4, '192.168.1.20'], [srv0, '192.168.1.100']].forEach(([d, ip]) => Object.assign(d, { ip, gw: '192.168.1.1', dns: '192.168.1.100' }));
   Object.assign(pc5, { ip: '192.168.2.10', gw: '192.168.2.1', dns: '192.168.1.100' });
   lap0.ipMode = 'dhcp';
+  [ap0, pc2, lap0].forEach(d => Object.assign(d.wifi, { ssid: 'SMX-AULA', sec: 'wpa2', key: 'cecac2026' }));
+  ap0.updateLabel();
   Object.assign(srv0.services.dhcp, { on: true, start: '192.168.1.50', max: 50, gw: '192.168.1.1', dns: '192.168.1.100' });
   Object.assign(srv0.services.dns, { on: true, records: [
     { name: 'www.smx.lan', type: 'A', value: '192.168.1.100' },
@@ -3438,6 +3575,7 @@ function buildDemo() {
   updateWireless();
   log('Topología de ejemplo: LAN 192.168.1.0/24 (puerta de enlace Router0) · enlace 192.168.3.0/24 Router0–MLSwitch0 · LAN 192.168.2.0/24 tras MLSwitch0 (Vlan1) · PC2 y Laptop0 por Wi-Fi · Server0 a través de PatchPanel0 · PC4 con cable de consola al router');
   log('Server0 (192.168.1.100) da DHCP (pool 192.168.1.50), DNS (www.smx.lan, intranet.smx.lan…) y HTTP. Laptop0 pide su IP por DHCP; prueba el «Navegador web» de cualquier PC.');
+  log('AP0 emite la red «SMX-AULA» con WPA2-PSK (clave cecac2026). Cambia la clave de Laptop0 para ver cómo falla el 4-way handshake.');
   startDhcp(lap0);
 }
 
